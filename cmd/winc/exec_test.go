@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	winc "code.cloudfoundry.org/winc/cmd/winc"
 	"code.cloudfoundry.org/winc/command"
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/hcsclient"
@@ -24,7 +25,7 @@ import (
 var _ = Describe("Exec", func() {
 	var (
 		containerId string
-		cm          container.ContainerManager
+		cm          winc.ContainerManager
 		client      hcsclient.HCSClient
 	)
 

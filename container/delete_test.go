@@ -24,7 +24,7 @@ var _ = Describe("Delete", func() {
 		sandboxManager   *containerfakes.FakeSandboxManager
 		fakeContainer    *hcsclientfakes.FakeContainer
 		networkManager   *networkfakes.FakeNetworkManager
-		containerManager container.ContainerManager
+		containerManager ContainerManager
 	)
 
 	BeforeEach(func() {

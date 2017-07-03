@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	winc "code.cloudfoundry.org/winc/cmd/winc"
 	"code.cloudfoundry.org/winc/command"
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/hcsclient"
@@ -31,7 +32,7 @@ var _ = Describe("Create", func() {
 		config      []byte
 		containerId string
 		client      hcsclient.Client
-		cm          container.ContainerManager
+		cm          winc.ContainerManager
 		bundleSpec  specs.Spec
 		err         error
 	)

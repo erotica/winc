@@ -31,7 +31,7 @@ var _ = Describe("Create", func() {
 		hcsClient            *hcsclientfakes.FakeClient
 		sandboxManager       *containerfakes.FakeSandboxManager
 		networkManager       *networkfakes.FakeNetworkManager
-		containerManager     container.ContainerManager
+		containerManager     ContainerManager
 		spec                 *specs.Spec
 	)
 

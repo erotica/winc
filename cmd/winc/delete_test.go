@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	winc "code.cloudfoundry.org/winc/cmd/winc"
 	"code.cloudfoundry.org/winc/command"
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/hcsclient"
@@ -21,7 +22,7 @@ var _ = Describe("Delete", func() {
 	Context("when provided an existing container id", func() {
 		var (
 			containerId string
-			cm          container.ContainerManager
+			cm          winc.ContainerManager
 		)
 
 		BeforeEach(func() {

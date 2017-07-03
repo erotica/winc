@@ -16,6 +16,7 @@ import (
 	"code.cloudfoundry.org/winc/port_allocator"
 	"code.cloudfoundry.org/winc/sandbox"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/urfave/cli"
@@ -171,7 +172,14 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func wireContainerManager(bundlePath, containerId string) (container.ContainerManager, error) {
+type ContainerManager interface {
+	Create(spec *specs.Spec) error
+	Delete() error
+	State() (*specs.State, error)
+	Exec(*specs.Process) (hcsshim.Process, error)
+}
+
+func wireContainerManager(bundlePath, containerId string) (ContainerManager, error) {
 	client := hcsclient.HCSClient{}
 
 	if bundlePath == "" {

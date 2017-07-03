@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	winc "code.cloudfoundry.org/winc/cmd/winc"
 	"code.cloudfoundry.org/winc/command"
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/hcsclient"
@@ -21,7 +22,7 @@ var _ = Describe("State", func() {
 	Context("given an existing container id", func() {
 		var (
 			containerId string
-			cm          container.ContainerManager
+			cm          winc.ContainerManager
 			actualState *specs.State
 			client      hcsclient.Client
 		)

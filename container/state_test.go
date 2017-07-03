@@ -23,7 +23,7 @@ var _ = Describe("State", func() {
 	var (
 		hcsClient        *hcsclientfakes.FakeClient
 		sandboxManager   *containerfakes.FakeSandboxManager
-		containerManager container.ContainerManager
+		containerManager ContainerManager
 		fakeContainer    *hcsclientfakes.FakeContainer
 	)
 

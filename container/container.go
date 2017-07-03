@@ -19,13 +19,6 @@ import (
 
 const destroyTimeout = time.Second
 
-type ContainerManager interface {
-	Create(spec *specs.Spec) error
-	Delete() error
-	State() (*specs.State, error)
-	Exec(*specs.Process) (hcsshim.Process, error)
-}
-
 //go:generate counterfeiter . SandboxManager
 type SandboxManager interface {
 	Create(rootfs string) error
@@ -42,7 +35,7 @@ type containerManager struct {
 	id             string
 }
 
-func NewManager(hcsClient hcsclient.Client, sandboxManager SandboxManager, networkManager network.NetworkManager, containerId string) ContainerManager {
+func NewManager(hcsClient hcsclient.Client, sandboxManager SandboxManager, networkManager network.NetworkManager, containerId string) *containerManager {
 	return &containerManager{
 		hcsClient:      hcsClient,
 		sandboxManager: sandboxManager,
