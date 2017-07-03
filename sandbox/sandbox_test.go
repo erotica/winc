@@ -22,7 +22,6 @@ var _ = Describe("Sandbox", func() {
 		bundlePath         string
 		rootfs             string
 		hcsClient          *hcsclientfakes.FakeClient
-		sandboxManager     sandbox.SandboxManager
 		expectedDriverInfo hcsshim.DriverInfo
 		expectedLayerId    string
 		rootfsParents      []byte
@@ -39,7 +38,6 @@ var _ = Describe("Sandbox", func() {
 
 		hcsClient = &hcsclientfakes.FakeClient{}
 		fakeCommand = &sandboxfakes.FakeCommand{}
-		sandboxManager = sandbox.NewManager(hcsClient, fakeCommand, bundlePath)
 
 		expectedDriverInfo = hcsshim.DriverInfo{
 			HomeDir: filepath.Dir(bundlePath),
@@ -61,7 +59,7 @@ var _ = Describe("Sandbox", func() {
 	Context("Create", func() {
 		Context("when provided a rootfs layer", func() {
 			It("creates and activates the bundlePath", func() {
-				err := sandboxManager.Create(rootfs)
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 				Expect(err).ToNot(HaveOccurred())
 
 				expectedLayers := []string{rootfs, "path1", "path2"}
@@ -93,7 +91,7 @@ var _ = Describe("Sandbox", func() {
 				})
 
 				It("errors", func() {
-					err := sandboxManager.Create(rootfs)
+					err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 					Expect(err).To(Equal(createSandboxLayerError))
 				})
 			})
@@ -106,7 +104,7 @@ var _ = Describe("Sandbox", func() {
 				})
 
 				It("errors", func() {
-					err := sandboxManager.Create(rootfs)
+					err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 					Expect(err).To(Equal(activateLayerError))
 				})
 			})
@@ -119,7 +117,7 @@ var _ = Describe("Sandbox", func() {
 				})
 
 				It("errors", func() {
-					err := sandboxManager.Create(rootfs)
+					err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 					Expect(err).To(Equal(prepareLayerError))
 				})
 			})
@@ -127,7 +125,7 @@ var _ = Describe("Sandbox", func() {
 
 		Context("when provided a nonexistent rootfs layer", func() {
 			It("errors", func() {
-				err := sandboxManager.Create("nonexistentrootfs")
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create("nonexistentrootfs")
 				Expect(err).To(Equal(&sandbox.MissingRootfsError{Msg: "nonexistentrootfs"}))
 			})
 		})
@@ -138,7 +136,7 @@ var _ = Describe("Sandbox", func() {
 			})
 
 			It("errors", func() {
-				err := sandboxManager.Create(rootfs)
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 				Expect(err).To(Equal(&sandbox.MissingRootfsLayerChainError{Msg: rootfs}))
 			})
 		})
@@ -149,7 +147,7 @@ var _ = Describe("Sandbox", func() {
 			})
 
 			It("errors", func() {
-				err := sandboxManager.Create(rootfs)
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 				Expect(err).To(Equal(&sandbox.InvalidRootfsLayerChainError{Msg: rootfs}))
 			})
 		})
@@ -160,7 +158,7 @@ var _ = Describe("Sandbox", func() {
 			})
 
 			It("errors", func() {
-				err := sandboxManager.Create(rootfs)
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Create(rootfs)
 				Expect(err).To(Equal(&sandbox.MissingBundlePathError{Msg: bundlePath}))
 			})
 		})
@@ -168,7 +166,7 @@ var _ = Describe("Sandbox", func() {
 
 	Context("Delete", func() {
 		It("unprepares and deactivates the bundlePath", func() {
-			err := sandboxManager.Delete()
+			err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Delete()
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(hcsClient.UnprepareLayerCallCount()).To(Equal(1))
@@ -188,7 +186,7 @@ var _ = Describe("Sandbox", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(f.Close()).To(Succeed())
 
-			err = sandboxManager.Delete()
+			err = sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Delete()
 			Expect(err).ToNot(HaveOccurred())
 
 			files, err := filepath.Glob(filepath.Join(bundlePath, "*"))
@@ -204,7 +202,7 @@ var _ = Describe("Sandbox", func() {
 			})
 
 			It("errors", func() {
-				err := sandboxManager.Delete()
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Delete()
 				Expect(err).To(Equal(unprepareLayerError))
 			})
 		})
@@ -217,7 +215,7 @@ var _ = Describe("Sandbox", func() {
 			})
 
 			It("errors", func() {
-				err := sandboxManager.Delete()
+				err := sandbox.NewManager(hcsClient, fakeCommand, bundlePath).Delete()
 				Expect(err).To(Equal(deactivateLayerError))
 			})
 		})
@@ -228,8 +226,9 @@ var _ = Describe("Sandbox", func() {
 			volumePath := "some-volume-path\n"
 			fakeCommand.CombinedOutputReturns([]byte(volumePath), nil)
 
+			manager := sandbox.NewManager(hcsClient, fakeCommand, bundlePath)
 			pid := rand.Int()
-			Expect(sandboxManager.Mount(pid)).To(Succeed())
+			Expect(manager.Mount(pid)).To(Succeed())
 
 			rootPath := filepath.Join("c:\\", "proc", fmt.Sprintf("%d", pid), "root")
 			Expect(rootPath).To(BeADirectory())
@@ -260,7 +259,8 @@ var _ = Describe("Sandbox", func() {
 		})
 
 		It("unmounts the sandbox.vhdx from c:\\proc\\<pid>\\mnt and removes the directory", func() {
-			Expect(sandboxManager.Unmount(pid)).To(Succeed())
+			manager := sandbox.NewManager(hcsClient, fakeCommand, bundlePath)
+			Expect(manager.Unmount(pid)).To(Succeed())
 
 			Expect(fakeCommand.RunCallCount()).To(Equal(1))
 			runCmd, runArgs := fakeCommand.RunArgsForCall(0)

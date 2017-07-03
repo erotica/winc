@@ -4,9 +4,9 @@ import (
 	"errors"
 
 	"code.cloudfoundry.org/winc/container"
+	"code.cloudfoundry.org/winc/container/containerfakes"
 	"code.cloudfoundry.org/winc/hcsclient/hcsclientfakes"
 	"code.cloudfoundry.org/winc/network/networkfakes"
-	"code.cloudfoundry.org/winc/sandbox/sandboxfakes"
 	"github.com/Microsoft/hcsshim"
 
 	. "github.com/onsi/ginkgo"
@@ -21,7 +21,7 @@ var _ = Describe("Delete", func() {
 
 	var (
 		hcsClient        *hcsclientfakes.FakeClient
-		sandboxManager   *sandboxfakes.FakeSandboxManager
+		sandboxManager   *containerfakes.FakeSandboxManager
 		fakeContainer    *hcsclientfakes.FakeContainer
 		networkManager   *networkfakes.FakeNetworkManager
 		containerManager container.ContainerManager
@@ -29,7 +29,7 @@ var _ = Describe("Delete", func() {
 
 	BeforeEach(func() {
 		hcsClient = &hcsclientfakes.FakeClient{}
-		sandboxManager = &sandboxfakes.FakeSandboxManager{}
+		sandboxManager = &containerfakes.FakeSandboxManager{}
 		fakeContainer = &hcsclientfakes.FakeContainer{}
 		networkManager = &networkfakes.FakeNetworkManager{}
 		containerManager = container.NewManager(hcsClient, sandboxManager, networkManager, expectedContainerId)

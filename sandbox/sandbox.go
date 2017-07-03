@@ -16,15 +16,6 @@ import (
 
 var sandboxFiles = []string{"Hives", "initialized", "sandbox.vhdx", "layerchain.json"}
 
-//go:generate counterfeiter . SandboxManager
-type SandboxManager interface {
-	Create(rootfs string) error
-	Delete() error
-	BundlePath() string
-	Mount(pid int) error
-	Unmount(pid int) error
-}
-
 //go:generate counterfeiter . Command
 type Command interface {
 	Run(command string, args ...string) error
@@ -39,7 +30,7 @@ type sandboxManager struct {
 	command    Command
 }
 
-func NewManager(hcsClient hcsclient.Client, command Command, bundlePath string) SandboxManager {
+func NewManager(hcsClient hcsclient.Client, command Command, bundlePath string) *sandboxManager {
 	driverInfo := hcsshim.DriverInfo{
 		HomeDir: filepath.Dir(bundlePath),
 		Flavour: 1,

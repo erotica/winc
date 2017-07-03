@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/winc/container"
+	"code.cloudfoundry.org/winc/container/containerfakes"
 	"code.cloudfoundry.org/winc/hcsclient/hcsclientfakes"
-	"code.cloudfoundry.org/winc/sandbox/sandboxfakes"
 	"github.com/Microsoft/hcsshim"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 
@@ -22,14 +22,14 @@ var _ = Describe("State", func() {
 
 	var (
 		hcsClient        *hcsclientfakes.FakeClient
-		sandboxManager   *sandboxfakes.FakeSandboxManager
+		sandboxManager   *containerfakes.FakeSandboxManager
 		containerManager container.ContainerManager
 		fakeContainer    *hcsclientfakes.FakeContainer
 	)
 
 	BeforeEach(func() {
 		hcsClient = &hcsclientfakes.FakeClient{}
-		sandboxManager = &sandboxfakes.FakeSandboxManager{}
+		sandboxManager = &containerfakes.FakeSandboxManager{}
 		sandboxManager.BundlePathReturns(expectedContainerBundleDir)
 		containerManager = container.NewManager(hcsClient, sandboxManager, nil, expectedContainerId)
 		fakeContainer = &hcsclientfakes.FakeContainer{}

@@ -12,7 +12,6 @@ import (
 
 	"code.cloudfoundry.org/winc/hcsclient"
 	"code.cloudfoundry.org/winc/network"
-	"code.cloudfoundry.org/winc/sandbox"
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -27,14 +26,23 @@ type ContainerManager interface {
 	Exec(*specs.Process) (hcsshim.Process, error)
 }
 
+//go:generate counterfeiter . SandboxManager
+type SandboxManager interface {
+	Create(rootfs string) error
+	Delete() error
+	BundlePath() string
+	Mount(pid int) error
+	Unmount(pid int) error
+}
+
 type containerManager struct {
 	hcsClient      hcsclient.Client
-	sandboxManager sandbox.SandboxManager
+	sandboxManager SandboxManager
 	networkManager network.NetworkManager
 	id             string
 }
 
-func NewManager(hcsClient hcsclient.Client, sandboxManager sandbox.SandboxManager, networkManager network.NetworkManager, containerId string) ContainerManager {
+func NewManager(hcsClient hcsclient.Client, sandboxManager SandboxManager, networkManager network.NetworkManager, containerId string) ContainerManager {
 	return &containerManager{
 		hcsClient:      hcsClient,
 		sandboxManager: sandboxManager,
