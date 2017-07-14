@@ -365,7 +365,7 @@ var _ = Describe("Create", func() {
 
 				state, err := cm.State()
 				Expect(err).ToNot(HaveOccurred())
-				err = copy(consumeBin, filepath.Join("c:\\", "proc", strconv.Itoa(state.Pid), "root", "consume.exe"))
+				err = copy(filepath.Join("c:\\", "proc", strconv.Itoa(state.Pid), "root", "consume.exe"), consumeBin)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
