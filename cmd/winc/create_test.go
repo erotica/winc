@@ -380,7 +380,7 @@ var _ = Describe("Create", func() {
 			})
 
 			grabMemory := func(mem int, exitCode int) string {
-				cmd := exec.Command(wincBin, "exec", containerId, "powershell", fmt.Sprintf("$memstress = @(); $memstress += 'a' * %dMB", mem))
+				cmd := exec.Command(wincBin, "exec", containerId, "powershell", fmt.Sprintf("echo 'allocating memory'; $memstress = @(); $memstress += 'a' * %dMB; echo done!", mem))
 				session, err := gexec.Start(cmd, stdOut, stdErr)
 				Expect(err).ToNot(HaveOccurred())
 				Eventually(session, defaultTimeout*2).Should(gexec.Exit())
