@@ -365,7 +365,7 @@ var _ = Describe("Create", func() {
 			})
 		})
 
-		Context("when the bundle config.json specifies a container memory limit", func() {
+		FContext("when the bundle config.json specifies a container memory limit", func() {
 			var memLimitMB = uint64(128)
 
 			BeforeEach(func() {
@@ -383,7 +383,12 @@ var _ = Describe("Create", func() {
 				cmd := exec.Command(wincBin, "exec", containerId, "powershell", fmt.Sprintf("$memstress = @(); $memstress += 'a' * %dMB", mem))
 				session, err := gexec.Start(cmd, stdOut, stdErr)
 				Expect(err).ToNot(HaveOccurred())
-				Eventually(session, defaultTimeout*2).Should(gexec.Exit(exitCode))
+				Eventually(session, defaultTimeout*2).Should(gexec.Exit())
+				if session.ExitCode() != exitCode {
+					fmt.Println("STDOUT: " + stdOut.String())
+					fmt.Println("STDERR: " + stdErr.String())
+				}
+				Expect(session.ExitCode()).To(Equal(exitCode))
 				return stdErr.String()
 			}
 
