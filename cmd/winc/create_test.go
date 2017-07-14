@@ -373,12 +373,7 @@ var _ = Describe("Create", func() {
 				cmd := exec.Command(wincBin, "exec", containerId, "c:\\consume.exe", strconv.Itoa(mem*1024*1024))
 				session, err := gexec.Start(cmd, stdOut, stdErr)
 				Expect(err).ToNot(HaveOccurred())
-				Eventually(session, defaultTimeout*2).Should(gexec.Exit())
-				if session.ExitCode() != exitCode {
-					fmt.Println("STDOUT: " + stdOut.String())
-					fmt.Println("STDERR: " + stdErr.String())
-				}
-				Expect(session.ExitCode()).To(Equal(exitCode))
+				Eventually(session, defaultTimeout*2).Should(gexec.Exit(exitCode))
 				return stdErr.String()
 			}
 
@@ -387,7 +382,7 @@ var _ = Describe("Create", func() {
 			})
 
 			It("is constrained by hitting the memory limit", func() {
-				Expect(grabMemory(int(memLimitMB), 1)).To(ContainSubstring("Exception of type 'System.OutOfMemoryException' was thrown"))
+				Expect(grabMemory(int(memLimitMB), 2)).To(ContainSubstring("fatal error: runtime: cannot map pages in arena address space"))
 			})
 		})
 	})
