@@ -18,6 +18,7 @@ var _ = Describe("Exec", func() {
 	const (
 		expectedContainerId        = "containerid"
 		expectedContainerBundleDir = "C:\\bundle"
+		expectedLayerFolderPath    = "C:\\layers"
 	)
 	var (
 		hcsClient        *hcsclientfakes.FakeClient
@@ -31,7 +32,7 @@ var _ = Describe("Exec", func() {
 	BeforeEach(func() {
 		hcsClient = &hcsclientfakes.FakeClient{}
 		sandboxManager = &sandboxfakes.FakeSandboxManager{}
-		sandboxManager.BundlePathReturns(expectedContainerBundleDir)
+		sandboxManager.LayerFolderPathReturns(expectedLayerFolderPath)
 		containerManager = container.NewManager(hcsClient, sandboxManager, nil, expectedContainerId)
 		fakeContainer = &hcsclientfakes.FakeContainer{}
 		fakeProcess = &hcsclientfakes.FakeProcess{}

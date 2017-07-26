@@ -18,6 +18,7 @@ var _ = Describe("State", func() {
 	const (
 		expectedContainerId        = "containerid"
 		expectedContainerBundleDir = "C:\\bundle"
+		expectedLayerFolderPath    = "C:\\layers"
 	)
 
 	var (
@@ -30,7 +31,7 @@ var _ = Describe("State", func() {
 	BeforeEach(func() {
 		hcsClient = &hcsclientfakes.FakeClient{}
 		sandboxManager = &sandboxfakes.FakeSandboxManager{}
-		sandboxManager.BundlePathReturns(expectedContainerBundleDir)
+		sandboxManager.LayerFolderPathReturns(expectedLayerFolderPath)
 		containerManager = container.NewManager(hcsClient, sandboxManager, nil, expectedContainerId)
 		fakeContainer = &hcsclientfakes.FakeContainer{}
 		fakeContainer.ProcessListReturns([]hcsshim.ProcessListItem{
@@ -41,7 +42,7 @@ var _ = Describe("State", func() {
 	})
 
 	It("calls the client with the correct container id", func() {
-		containerManager.State()
+		_, _ = containerManager.State()
 		Expect(hcsClient.GetContainerPropertiesCallCount()).To(Equal(1))
 		Expect(hcsClient.GetContainerPropertiesArgsForCall(0)).To(Equal(expectedContainerId))
 	})

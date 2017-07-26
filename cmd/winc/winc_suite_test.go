@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"time"
 
 	"code.cloudfoundry.org/winc/hcsclient"
@@ -69,6 +70,13 @@ func TestWinc(t *testing.T) {
 	})
 
 	RunSpecs(t, "Winc Suite")
+}
+
+func run(cmd string, args ...string) error {
+	command := exec.Command(cmd, args...)
+	command.Stdout = GinkgoWriter
+	command.Stderr = GinkgoWriter
+	return command.Run()
 }
 
 func runtimeSpecGenerator(rootfsPath string) specs.Spec {

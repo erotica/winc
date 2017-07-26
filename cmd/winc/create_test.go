@@ -27,21 +27,22 @@ import (
 
 var _ = Describe("Create", func() {
 	var (
-		config      []byte
-		containerId string
-		client      hcsclient.Client
-		cm          container.ContainerManager
-		bundleSpec  specs.Spec
-		err         error
-		stdOut      *bytes.Buffer
-		stdErr      *bytes.Buffer
+		config        []byte
+		containerId   string
+		client        hcsclient.Client
+		cm            container.ContainerManager
+		bundleSpec    specs.Spec
+		imageDepotDir string
+		err           error
+		stdOut        *bytes.Buffer
+		stdErr        *bytes.Buffer
 	)
 
 	BeforeEach(func() {
 		containerId = filepath.Base(bundlePath)
 
 		client = &hcsclient.HCSClient{}
-		sm := sandbox.NewManager(client, &mounter.Mounter{}, bundlePath)
+		sm := sandbox.NewManager(client, &mounter.Mounter{}, imageDepotDir, bundlePath)
 		nm := networkManager(client)
 		cm = container.NewManager(client, sm, nm, containerId)
 
@@ -49,6 +50,9 @@ var _ = Describe("Create", func() {
 
 		stdOut = new(bytes.Buffer)
 		stdErr = new(bytes.Buffer)
+
+		imageDepotDir, err = ioutil.TempDir("", "depotDir")
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	JustBeforeEach(func() {
@@ -58,13 +62,17 @@ var _ = Describe("Create", func() {
 		Expect(ioutil.WriteFile(filepath.Join(bundlePath, "config.json"), config, 0666)).To(Succeed())
 	})
 
+	AfterEach(func() {
+		Expect(os.RemoveAll(imageDepotDir)).To(Succeed())
+	})
+
 	Context("when provided valid arguments", func() {
 		AfterEach(func() {
 			Expect(cm.Delete()).To(Succeed())
 		})
 
-		It("creates and starts a container", func() {
-			err := exec.Command(wincBin, "create", "-b", bundlePath, containerId).Run()
+		FIt("creates and starts a container", func() {
+			err := run(wincBin, "create", "-b", bundlePath, containerId)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(containerExists(containerId)).To(BeTrue())

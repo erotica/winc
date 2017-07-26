@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/hcsclient"
 	"code.cloudfoundry.org/winc/hcsclient/hcsclientfakes"
 	"code.cloudfoundry.org/winc/network/networkfakes"
+	"code.cloudfoundry.org/winc/sandbox"
 	"code.cloudfoundry.org/winc/sandbox/sandboxfakes"
 	"github.com/Microsoft/hcsshim"
 	. "github.com/onsi/ginkgo"
@@ -18,21 +20,18 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-var _ = Describe("Create", func() {
-	const (
-		rootfs          = "C:\\rootfs"
-		containerVolume = "containervolume"
-	)
-
+var _ = FDescribe("Create", func() {
 	var (
-		expectedContainerId  string
-		expectedBundlePath   string
-		expectedParentLayers []byte
-		hcsClient            *hcsclientfakes.FakeClient
-		sandboxManager       *sandboxfakes.FakeSandboxManager
-		networkManager       *networkfakes.FakeNetworkManager
-		containerManager     container.ContainerManager
-		spec                 *specs.Spec
+		expectedContainerId     string
+		expectedBundlePath      string
+		expectedLayerFolderPath string
+		expectedParentLayers    []byte
+		hcsClient               *hcsclientfakes.FakeClient
+		sandboxManager          *sandboxfakes.FakeSandboxManager
+		networkManager          *networkfakes.FakeNetworkManager
+		containerManager        container.ContainerManager
+		spec                    *specs.Spec
+		volumeGuid              string
 	)
 
 	BeforeEach(func() {
@@ -45,7 +44,7 @@ var _ = Describe("Create", func() {
 		hcsClient = &hcsclientfakes.FakeClient{}
 		sandboxManager = &sandboxfakes.FakeSandboxManager{}
 		networkManager = &networkfakes.FakeNetworkManager{}
-		containerManager = container.NewManager(hcsClient, sandboxManager, networkManager, expectedContainerId)
+		containerManager = container.NewManager(hcsClient, sandboxManager, networkManager, expectedBundlePath)
 
 		expectedParentLayers = []byte(`["path1", "path2"]`)
 		networkManager.AttachEndpointToConfigStub = func(config hcsshim.ContainerConfig, containerID string) (hcsshim.ContainerConfig, error) {
@@ -56,7 +55,9 @@ var _ = Describe("Create", func() {
 		Expect(ioutil.WriteFile(filepath.Join(expectedBundlePath, "layerchain.json"), expectedParentLayers, 0755)).To(Succeed())
 
 		spec = &specs.Spec{Root: &specs.Root{}}
-		spec.Root.Path = rootfs
+
+		volumeGuid = "some-volume-guid"
+		expectedLayerFolderPath = "some-layer-folder-path"
 	})
 
 	AfterEach(func() {
@@ -75,16 +76,26 @@ var _ = Describe("Create", func() {
 		BeforeEach(func() {
 			fakeContainer = hcsclientfakes.FakeContainer{}
 			hcsClient.GetContainerPropertiesReturns(hcsshim.ContainerProperties{}, &hcsclient.NotFoundError{})
-			sandboxManager.BundlePathReturns(expectedBundlePath)
-			sandboxManager.CreateReturns(containerVolume, nil)
+			sandboxManager.LayerFolderPathReturns(expectedLayerFolderPath)
+			sandboxManager.CreateReturns(
+				&sandbox.ImageSpec{
+					RootFs: volumeGuid,
+					Image: sandbox.Image{
+						Config: sandbox.ImageConfig{
+							Layers: []string{"path1", "path2"},
+						},
+					},
+				},
+				nil,
+			)
 
 			err := json.Unmarshal(expectedParentLayers, &expectedLayerPaths)
 			Expect(err).ToNot(HaveOccurred())
 
-			layerGuid := hcsshim.NewGUID("layerguid")
-			hcsClient.NameToGuidReturns(*layerGuid, nil)
 			expectedHcsshimLayers = []hcsshim.Layer{}
-			for _, l := range expectedLayerPaths {
+			for i, l := range expectedLayerPaths {
+				layerGuid := hcsshim.NewGUID("layerguid" + strconv.Itoa(i))
+				hcsClient.NameToGuidReturnsOnCall(i, *layerGuid, nil)
 				expectedHcsshimLayers = append(expectedHcsshimLayers, hcsshim.Layer{
 					ID:   layerGuid.ToString(),
 					Path: l,
@@ -107,7 +118,7 @@ var _ = Describe("Create", func() {
 			Expect(hcsClient.GetContainerPropertiesArgsForCall(0)).To(Equal(expectedContainerId))
 
 			Expect(sandboxManager.CreateCallCount()).To(Equal(1))
-			Expect(sandboxManager.BundlePathCallCount()).To(Equal(1))
+			Expect(sandboxManager.LayerFolderPathCallCount()).To(Equal(1))
 
 			Expect(hcsClient.NameToGuidCallCount()).To(Equal(len(expectedLayerPaths)))
 			for i, l := range expectedLayerPaths {
@@ -120,9 +131,9 @@ var _ = Describe("Create", func() {
 			Expect(containerConfig).To(Equal(&hcsshim.ContainerConfig{
 				SystemType:        "Container",
 				Name:              expectedBundlePath,
-				VolumePath:        containerVolume,
+				VolumePath:        volumeGuid,
 				Owner:             "winc",
-				LayerFolderPath:   expectedBundlePath,
+				LayerFolderPath:   expectedLayerFolderPath,
 				Layers:            expectedHcsshimLayers,
 				MappedDirectories: []hcsshim.MappedDir{},
 				EndpointList:      []string{"endpoint-for-" + expectedContainerId},
@@ -131,7 +142,9 @@ var _ = Describe("Create", func() {
 			Expect(fakeContainer.StartCallCount()).To(Equal(1))
 
 			Expect(sandboxManager.MountCallCount()).To(Equal(1))
-			Expect(sandboxManager.MountArgsForCall(0)).To(Equal(pid))
+			actualPid, actualVolumePath := sandboxManager.MountArgsForCall(0)
+			Expect(actualPid).To(Equal(pid))
+			Expect(actualVolumePath).To(Equal(volumeGuid))
 		})
 
 		Context("when mounts are specified in the spec", func() {
@@ -230,16 +243,6 @@ var _ = Describe("Create", func() {
 				Expect(hcsClient.CreateContainerCallCount()).To(Equal(1))
 				_, containerConfig := hcsClient.CreateContainerArgsForCall(0)
 				Expect(containerConfig.MemoryMaximumInMB).To(Equal(int64(expectedMemoryMaxinMB)))
-			})
-		})
-
-		Context("when the base of the bundlePath and container id do not match", func() {
-			BeforeEach(func() {
-				sandboxManager.BundlePathReturns("C:\\notthesamecontainerid")
-			})
-
-			It("errors", func() {
-				Expect(containerManager.Create(spec)).To(Equal(&hcsclient.InvalidIdError{Id: expectedContainerId}))
 			})
 		})
 

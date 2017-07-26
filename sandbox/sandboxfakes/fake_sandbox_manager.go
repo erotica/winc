@@ -8,17 +8,17 @@ import (
 )
 
 type FakeSandboxManager struct {
-	CreateStub        func(rootfs string) (string, error)
+	CreateStub        func(rootfsPath string) (*sandbox.ImageSpec, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
-		rootfs string
+		rootfsPath string
 	}
 	createReturns struct {
-		result1 string
+		result1 *sandbox.ImageSpec
 		result2 error
 	}
 	createReturnsOnCall map[int]struct {
-		result1 string
+		result1 *sandbox.ImageSpec
 		result2 error
 	}
 	DeleteStub        func() error
@@ -30,19 +30,20 @@ type FakeSandboxManager struct {
 	deleteReturnsOnCall map[int]struct {
 		result1 error
 	}
-	BundlePathStub        func() string
-	bundlePathMutex       sync.RWMutex
-	bundlePathArgsForCall []struct{}
-	bundlePathReturns     struct {
+	LayerFolderPathStub        func() string
+	layerFolderPathMutex       sync.RWMutex
+	layerFolderPathArgsForCall []struct{}
+	layerFolderPathReturns     struct {
 		result1 string
 	}
-	bundlePathReturnsOnCall map[int]struct {
+	layerFolderPathReturnsOnCall map[int]struct {
 		result1 string
 	}
-	MountStub        func(pid int) error
+	MountStub        func(pid int, volumePath string) error
 	mountMutex       sync.RWMutex
 	mountArgsForCall []struct {
-		pid int
+		pid        int
+		volumePath string
 	}
 	mountReturns struct {
 		result1 error
@@ -65,16 +66,16 @@ type FakeSandboxManager struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeSandboxManager) Create(rootfs string) (string, error) {
+func (fake *FakeSandboxManager) Create(rootfsPath string) (*sandbox.ImageSpec, error) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
-		rootfs string
-	}{rootfs})
-	fake.recordInvocation("Create", []interface{}{rootfs})
+		rootfsPath string
+	}{rootfsPath})
+	fake.recordInvocation("Create", []interface{}{rootfsPath})
 	fake.createMutex.Unlock()
 	if fake.CreateStub != nil {
-		return fake.CreateStub(rootfs)
+		return fake.CreateStub(rootfsPath)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -91,27 +92,27 @@ func (fake *FakeSandboxManager) CreateCallCount() int {
 func (fake *FakeSandboxManager) CreateArgsForCall(i int) string {
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
-	return fake.createArgsForCall[i].rootfs
+	return fake.createArgsForCall[i].rootfsPath
 }
 
-func (fake *FakeSandboxManager) CreateReturns(result1 string, result2 error) {
+func (fake *FakeSandboxManager) CreateReturns(result1 *sandbox.ImageSpec, result2 error) {
 	fake.CreateStub = nil
 	fake.createReturns = struct {
-		result1 string
+		result1 *sandbox.ImageSpec
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeSandboxManager) CreateReturnsOnCall(i int, result1 string, result2 error) {
+func (fake *FakeSandboxManager) CreateReturnsOnCall(i int, result1 *sandbox.ImageSpec, result2 error) {
 	fake.CreateStub = nil
 	if fake.createReturnsOnCall == nil {
 		fake.createReturnsOnCall = make(map[int]struct {
-			result1 string
+			result1 *sandbox.ImageSpec
 			result2 error
 		})
 	}
 	fake.createReturnsOnCall[i] = struct {
-		result1 string
+		result1 *sandbox.ImageSpec
 		result2 error
 	}{result1, result2}
 }
@@ -156,56 +157,57 @@ func (fake *FakeSandboxManager) DeleteReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeSandboxManager) BundlePath() string {
-	fake.bundlePathMutex.Lock()
-	ret, specificReturn := fake.bundlePathReturnsOnCall[len(fake.bundlePathArgsForCall)]
-	fake.bundlePathArgsForCall = append(fake.bundlePathArgsForCall, struct{}{})
-	fake.recordInvocation("BundlePath", []interface{}{})
-	fake.bundlePathMutex.Unlock()
-	if fake.BundlePathStub != nil {
-		return fake.BundlePathStub()
+func (fake *FakeSandboxManager) LayerFolderPath() string {
+	fake.layerFolderPathMutex.Lock()
+	ret, specificReturn := fake.layerFolderPathReturnsOnCall[len(fake.layerFolderPathArgsForCall)]
+	fake.layerFolderPathArgsForCall = append(fake.layerFolderPathArgsForCall, struct{}{})
+	fake.recordInvocation("LayerFolderPath", []interface{}{})
+	fake.layerFolderPathMutex.Unlock()
+	if fake.LayerFolderPathStub != nil {
+		return fake.LayerFolderPathStub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.bundlePathReturns.result1
+	return fake.layerFolderPathReturns.result1
 }
 
-func (fake *FakeSandboxManager) BundlePathCallCount() int {
-	fake.bundlePathMutex.RLock()
-	defer fake.bundlePathMutex.RUnlock()
-	return len(fake.bundlePathArgsForCall)
+func (fake *FakeSandboxManager) LayerFolderPathCallCount() int {
+	fake.layerFolderPathMutex.RLock()
+	defer fake.layerFolderPathMutex.RUnlock()
+	return len(fake.layerFolderPathArgsForCall)
 }
 
-func (fake *FakeSandboxManager) BundlePathReturns(result1 string) {
-	fake.BundlePathStub = nil
-	fake.bundlePathReturns = struct {
+func (fake *FakeSandboxManager) LayerFolderPathReturns(result1 string) {
+	fake.LayerFolderPathStub = nil
+	fake.layerFolderPathReturns = struct {
 		result1 string
 	}{result1}
 }
 
-func (fake *FakeSandboxManager) BundlePathReturnsOnCall(i int, result1 string) {
-	fake.BundlePathStub = nil
-	if fake.bundlePathReturnsOnCall == nil {
-		fake.bundlePathReturnsOnCall = make(map[int]struct {
+func (fake *FakeSandboxManager) LayerFolderPathReturnsOnCall(i int, result1 string) {
+	fake.LayerFolderPathStub = nil
+	if fake.layerFolderPathReturnsOnCall == nil {
+		fake.layerFolderPathReturnsOnCall = make(map[int]struct {
 			result1 string
 		})
 	}
-	fake.bundlePathReturnsOnCall[i] = struct {
+	fake.layerFolderPathReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
 }
 
-func (fake *FakeSandboxManager) Mount(pid int) error {
+func (fake *FakeSandboxManager) Mount(pid int, volumePath string) error {
 	fake.mountMutex.Lock()
 	ret, specificReturn := fake.mountReturnsOnCall[len(fake.mountArgsForCall)]
 	fake.mountArgsForCall = append(fake.mountArgsForCall, struct {
-		pid int
-	}{pid})
-	fake.recordInvocation("Mount", []interface{}{pid})
+		pid        int
+		volumePath string
+	}{pid, volumePath})
+	fake.recordInvocation("Mount", []interface{}{pid, volumePath})
 	fake.mountMutex.Unlock()
 	if fake.MountStub != nil {
-		return fake.MountStub(pid)
+		return fake.MountStub(pid, volumePath)
 	}
 	if specificReturn {
 		return ret.result1
@@ -219,10 +221,10 @@ func (fake *FakeSandboxManager) MountCallCount() int {
 	return len(fake.mountArgsForCall)
 }
 
-func (fake *FakeSandboxManager) MountArgsForCall(i int) int {
+func (fake *FakeSandboxManager) MountArgsForCall(i int) (int, string) {
 	fake.mountMutex.RLock()
 	defer fake.mountMutex.RUnlock()
-	return fake.mountArgsForCall[i].pid
+	return fake.mountArgsForCall[i].pid, fake.mountArgsForCall[i].volumePath
 }
 
 func (fake *FakeSandboxManager) MountReturns(result1 error) {
@@ -299,8 +301,8 @@ func (fake *FakeSandboxManager) Invocations() map[string][][]interface{} {
 	defer fake.createMutex.RUnlock()
 	fake.deleteMutex.RLock()
 	defer fake.deleteMutex.RUnlock()
-	fake.bundlePathMutex.RLock()
-	defer fake.bundlePathMutex.RUnlock()
+	fake.layerFolderPathMutex.RLock()
+	defer fake.layerFolderPathMutex.RUnlock()
 	fake.mountMutex.RLock()
 	defer fake.mountMutex.RUnlock()
 	fake.unmountMutex.RLock()

@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"code.cloudfoundry.org/winc/hcsclient"
 	"code.cloudfoundry.org/winc/hcsclient/hcsclientfakes"
@@ -19,17 +21,16 @@ import (
 )
 
 var _ = Describe("Sandbox", func() {
-	const containerVolume = "containerVolume"
-
 	var (
-		bundlePath         string
+		containerId        string
 		rootfs             string
+		depotDir           string
 		hcsClient          *hcsclientfakes.FakeClient
 		sandboxManager     sandbox.SandboxManager
 		expectedDriverInfo hcsshim.DriverInfo
-		expectedLayerId    string
 		rootfsParents      []byte
 		fakeMounter        *sandboxfakes.FakeMounter
+		volumePath         = "some-volume-path"
 	)
 
 	BeforeEach(func() {
@@ -37,21 +38,23 @@ var _ = Describe("Sandbox", func() {
 		rootfs, err = ioutil.TempDir("", "rootfs")
 		Expect(err).ToNot(HaveOccurred())
 
-		bundlePath, err = ioutil.TempDir("", "sandbox")
+		depotDir, err = ioutil.TempDir("", "depotDir")
 		Expect(err).ToNot(HaveOccurred())
+
+		rand.Seed(time.Now().UnixNano())
+		containerId = strconv.Itoa(rand.Int())
 
 		hcsClient = &hcsclientfakes.FakeClient{}
 		fakeMounter = &sandboxfakes.FakeMounter{}
-		sandboxManager = sandbox.NewManager(hcsClient, fakeMounter, bundlePath)
+		sandboxManager = sandbox.NewManager(hcsClient, fakeMounter, depotDir, containerId)
 
 		expectedDriverInfo = hcsshim.DriverInfo{
-			HomeDir: filepath.Dir(bundlePath),
+			HomeDir: depotDir,
 			Flavour: 1,
 		}
-		expectedLayerId = filepath.Base(bundlePath)
 		rootfsParents = []byte(`["path1", "path2"]`)
 
-		hcsClient.GetLayerMountPathReturns(containerVolume, nil)
+		hcsClient.GetLayerMountPathReturns(volumePath, nil)
 	})
 
 	JustBeforeEach(func() {
@@ -59,39 +62,43 @@ var _ = Describe("Sandbox", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(bundlePath)).To(Succeed())
 		Expect(os.RemoveAll(rootfs)).To(Succeed())
+		Expect(os.RemoveAll(depotDir)).To(Succeed())
 	})
 
 	Context("Create", func() {
-		Context("when provided a rootfs layer", func() {
-			It("creates and activates the bundlePath", func() {
-				cv, err := sandboxManager.Create(rootfs)
+		Context("when provided a rootfs layer and handle", func() {
+			It("creates and activates the sandbox", func() {
+				imageSpec, err := sandboxManager.Create(rootfs)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(cv).To(Equal(containerVolume))
+				Expect(imageSpec.RootFs).To(Equal(volumePath))
+				layers := imageSpec.Image.Config.Layers
 
-				expectedLayers := []string{rootfs, "path1", "path2"}
+				sandboxLayer := filepath.Join(expectedDriverInfo.HomeDir, containerId)
+				expectedParentLayers := []string{rootfs, "path1", "path2"}
+
+				Expect(layers).To(Equal(append([]string{sandboxLayer}, expectedParentLayers...)))
 
 				Expect(hcsClient.CreateSandboxLayerCallCount()).To(Equal(1))
-				driverInfo, layerId, parentLayer, parentLayers := hcsClient.CreateSandboxLayerArgsForCall(0)
+				driverInfo, actualContainerId, parentLayer, parentLayers := hcsClient.CreateSandboxLayerArgsForCall(0)
 				Expect(driverInfo).To(Equal(expectedDriverInfo))
-				Expect(layerId).To(Equal(expectedLayerId))
+				Expect(actualContainerId).To(Equal(containerId))
 				Expect(parentLayer).To(Equal(rootfs))
-				Expect(parentLayers).To(Equal(expectedLayers))
+				Expect(parentLayers).To(Equal(expectedParentLayers))
 
 				Expect(hcsClient.ActivateLayerCallCount()).To(Equal(1))
-				driverInfo, layerId = hcsClient.ActivateLayerArgsForCall(0)
+				driverInfo, actualContainerId = hcsClient.ActivateLayerArgsForCall(0)
 				Expect(driverInfo).To(Equal(expectedDriverInfo))
-				Expect(layerId).To(Equal(expectedLayerId))
+				Expect(actualContainerId).To(Equal(containerId))
 
 				Expect(hcsClient.PrepareLayerCallCount()).To(Equal(1))
-				driverInfo, layerId, parentLayers = hcsClient.PrepareLayerArgsForCall(0)
+				driverInfo, actualContainerId, parentLayers = hcsClient.PrepareLayerArgsForCall(0)
 				Expect(driverInfo).To(Equal(expectedDriverInfo))
-				Expect(layerId).To(Equal(expectedLayerId))
-				Expect(parentLayers).To(Equal(expectedLayers))
+				Expect(actualContainerId).To(Equal(containerId))
+				Expect(parentLayers).To(Equal(expectedParentLayers))
 			})
 
-			Context("when creating the bundlePath fails", func() {
+			Context("when creating the sandbox layer fails", func() {
 				var createSandboxLayerError = errors.New("create sandbox failed")
 
 				BeforeEach(func() {
@@ -104,7 +111,7 @@ var _ = Describe("Sandbox", func() {
 				})
 			})
 
-			Context("when activating the bundlePath fails", func() {
+			Context("when activating the sandbox layer fails", func() {
 				var activateLayerError = errors.New("activate sandbox failed")
 
 				BeforeEach(func() {
@@ -117,7 +124,7 @@ var _ = Describe("Sandbox", func() {
 				})
 			})
 
-			Context("when preparing the bundlePath fails", func() {
+			Context("when preparing the sandbox layer fails", func() {
 				var prepareLayerError = errors.New("prepare sandbox failed")
 
 				BeforeEach(func() {
@@ -134,7 +141,9 @@ var _ = Describe("Sandbox", func() {
 		Context("when provided a nonexistent rootfs layer", func() {
 			It("errors", func() {
 				_, err := sandboxManager.Create("nonexistentrootfs")
-				Expect(err).To(Equal(&sandbox.MissingRootfsError{Msg: "nonexistentrootfs"}))
+				pathErr, isPathError := err.(*os.PathError)
+				Expect(isPathError).To(BeTrue())
+				Expect(pathErr.Path).To(Equal(filepath.Join("nonexistentrootfs", "layerchain.json")))
 			})
 		})
 
@@ -145,7 +154,9 @@ var _ = Describe("Sandbox", func() {
 
 			It("errors", func() {
 				_, err := sandboxManager.Create(rootfs)
-				Expect(err).To(Equal(&sandbox.MissingRootfsLayerChainError{Msg: rootfs}))
+				pathErr, isPathError := err.(*os.PathError)
+				Expect(isPathError).To(BeTrue())
+				Expect(pathErr.Path).To(Equal(filepath.Join(rootfs, "layerchain.json")))
 			})
 		})
 
@@ -156,18 +167,7 @@ var _ = Describe("Sandbox", func() {
 
 			It("errors", func() {
 				_, err := sandboxManager.Create(rootfs)
-				Expect(err).To(Equal(&sandbox.InvalidRootfsLayerChainError{Msg: rootfs}))
-			})
-		})
-
-		Context("when the bundlePath directory does not exist", func() {
-			BeforeEach(func() {
-				Expect(os.RemoveAll(bundlePath)).To(Succeed())
-			})
-
-			It("errors", func() {
-				_, err := sandboxManager.Create(rootfs)
-				Expect(err).To(Equal(&sandbox.MissingBundlePathError{Msg: bundlePath}))
+				Expect(err).To(Equal(&sandbox.InvalidRootfsLayerChainError{Path: rootfs}))
 			})
 		})
 
@@ -192,13 +192,14 @@ var _ = Describe("Sandbox", func() {
 
 				It("errors", func() {
 					_, err := sandboxManager.Create(rootfs)
-					Expect(err).To(Equal(&hcsclient.MissingVolumePathError{Id: expectedLayerId}))
+					Expect(err).To(Equal(&hcsclient.MissingVolumePathError{Id: containerId}))
 				})
 			})
 		})
 	})
 
-	Context("Delete", func() {
+	XContext("Delete", func() {
+		var bundlePath string
 		It("unprepares and deactivates the bundlePath", func() {
 			err := sandboxManager.Delete()
 			Expect(err).ToNot(HaveOccurred())
@@ -206,12 +207,12 @@ var _ = Describe("Sandbox", func() {
 			Expect(hcsClient.UnprepareLayerCallCount()).To(Equal(1))
 			driverInfo, layerId := hcsClient.UnprepareLayerArgsForCall(0)
 			Expect(driverInfo).To(Equal(expectedDriverInfo))
-			Expect(layerId).To(Equal(expectedLayerId))
+			Expect(layerId).To(Equal(containerId))
 
 			Expect(hcsClient.DeactivateLayerCallCount()).To(Equal(1))
 			driverInfo, layerId = hcsClient.DeactivateLayerArgsForCall(0)
 			Expect(driverInfo).To(Equal(expectedDriverInfo))
-			Expect(layerId).To(Equal(expectedLayerId))
+			Expect(layerId).To(Equal(containerId))
 		})
 
 		It("only deletes the files that the container created", func() {
@@ -257,11 +258,8 @@ var _ = Describe("Sandbox", func() {
 
 	Context("Mount", func() {
 		It("mounts the sandbox.vhdx at C:\\proc\\{{pid}}\\root", func() {
-			_, err := sandboxManager.Create(rootfs)
-			Expect(err).ToNot(HaveOccurred())
-
 			pid := rand.Int()
-			Expect(sandboxManager.Mount(pid)).To(Succeed())
+			Expect(sandboxManager.Mount(pid, volumePath)).To(Succeed())
 
 			rootPath := filepath.Join("c:\\", "proc", fmt.Sprintf("%d", pid), "root")
 			Expect(rootPath).To(BeADirectory())
@@ -269,7 +267,7 @@ var _ = Describe("Sandbox", func() {
 			Expect(fakeMounter.SetPointCallCount()).To(Equal(1))
 			mp, vol := fakeMounter.SetPointArgsForCall(0)
 			Expect(mp).To(Equal(rootPath))
-			Expect(vol).To(Equal(containerVolume))
+			Expect(vol).To(Equal(volumePath))
 		})
 	})
 

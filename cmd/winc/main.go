@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	specConfig = "config.json"
-	usage      = `Open Container Initiative runtime for Windows
+	imageDepotDir = "/var/vcap/data/winc-image/depot"
+	specConfig    = "config.json"
+	usage         = `Open Container Initiative runtime for Windows
 
 winc is a command line client for running applications on Windows packaged
 according to the Open Container Initiative (OCI) format and is a compliant
@@ -159,7 +160,7 @@ func checkArgs(context *cli.Context, expected, checkType int) error {
 
 	if err != nil {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(context, cmdName)
+		_ = cli.ShowCommandHelp(context, cmdName)
 		return err
 	}
 	return nil
@@ -182,7 +183,7 @@ func wireContainerManager(bundlePath, containerId string) (container.ContainerMa
 		bundlePath = cp.Name
 	}
 
-	sm := sandbox.NewManager(&client, &mounter.Mounter{}, bundlePath)
+	sm := sandbox.NewManager(&client, &mounter.Mounter{}, imageDepotDir, containerId)
 
 	tracker := &port_allocator.Tracker{
 		StartPort: 40000,
@@ -199,5 +200,5 @@ func wireContainerManager(bundlePath, containerId string) (container.ContainerMa
 
 	nm := network.NewNetworkManager(&client, pa)
 
-	return container.NewManager(&client, sm, nm, containerId), nil
+	return container.NewManager(&client, sm, nm, bundlePath), nil
 }

@@ -19,11 +19,11 @@ func (e *MissingRootfsLayerChainError) Error() string {
 }
 
 type InvalidRootfsLayerChainError struct {
-	Msg string
+	Path string
 }
 
 func (e *InvalidRootfsLayerChainError) Error() string {
-	return fmt.Sprintf("rootfs contains an invalid layerchain.json: %s", e.Msg)
+	return fmt.Sprintf("rootfs contains an invalid layerchain.json: %s", e.Path)
 }
 
 type MissingBundlePathError struct {

@@ -1,8 +1,6 @@
 package container
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,14 +30,16 @@ type containerManager struct {
 	sandboxManager sandbox.SandboxManager
 	networkManager network.NetworkManager
 	id             string
+	bundlePath     string
 }
 
-func NewManager(hcsClient hcsclient.Client, sandboxManager sandbox.SandboxManager, networkManager network.NetworkManager, containerId string) ContainerManager {
+func NewManager(hcsClient hcsclient.Client, sandboxManager sandbox.SandboxManager, networkManager network.NetworkManager, bundlePath string) ContainerManager {
 	return &containerManager{
 		hcsClient:      hcsClient,
 		sandboxManager: sandboxManager,
 		networkManager: networkManager,
-		id:             containerId,
+		bundlePath:     bundlePath,
+		id:             filepath.Base(bundlePath),
 	}
 }
 
@@ -52,28 +52,13 @@ func (c *containerManager) Create(spec *specs.Spec) error {
 		return err
 	}
 
-	bundlePath := c.sandboxManager.BundlePath()
-	if filepath.Base(bundlePath) != c.id {
-		return &hcsclient.InvalidIdError{Id: c.id}
-	}
-
-	volumePath, err := c.sandboxManager.Create(spec.Root.Path)
+	imageSpec, err := c.sandboxManager.Create(spec.Root.Path)
 	if err != nil {
-		return err
-	}
-
-	layerChain, err := ioutil.ReadFile(filepath.Join(bundlePath, "layerchain.json"))
-	if err != nil {
-		return err
-	}
-
-	layers := []string{}
-	if err := json.Unmarshal(layerChain, &layers); err != nil {
 		return err
 	}
 
 	layerInfos := []hcsshim.Layer{}
-	for _, layerPath := range layers {
+	for _, layerPath := range imageSpec.Image.Config.Layers {
 		layerId := filepath.Base(layerPath)
 		layerGuid, err := c.hcsClient.NameToGuid(layerId)
 		if err != nil {
@@ -109,10 +94,10 @@ func (c *containerManager) Create(spec *specs.Spec) error {
 
 	containerConfig := hcsshim.ContainerConfig{
 		SystemType:        "Container",
-		Name:              bundlePath,
-		VolumePath:        volumePath,
+		Name:              c.bundlePath,
+		VolumePath:        imageSpec.RootFs,
 		Owner:             "winc",
-		LayerFolderPath:   bundlePath,
+		LayerFolderPath:   c.sandboxManager.LayerFolderPath(),
 		Layers:            layerInfos,
 		MappedDirectories: mappedDirs,
 	}
@@ -164,7 +149,7 @@ func (c *containerManager) Create(spec *specs.Spec) error {
 		return err
 	}
 
-	if err := c.sandboxManager.Mount(pid); err != nil {
+	if err := c.sandboxManager.Mount(pid, imageSpec.RootFs); err != nil {
 		if deleteErr := c.deleteContainer(container); deleteErr != nil {
 			logrus.Error(deleteErr.Error())
 		}
@@ -220,7 +205,7 @@ func (c *containerManager) State() (*specs.State, error) {
 		Version: specs.Version,
 		ID:      c.id,
 		Status:  status,
-		Bundle:  c.sandboxManager.BundlePath(),
+		Bundle:  c.bundlePath,
 		Pid:     pid,
 	}, nil
 }
