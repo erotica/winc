@@ -6,6 +6,7 @@ import (
 
 	"code.cloudfoundry.org/winc/hcsclient"
 	"code.cloudfoundry.org/winc/sandbox"
+	"code.cloudfoundry.org/winc/volume"
 
 	"github.com/urfave/cli"
 )
@@ -32,9 +33,10 @@ var createCommand = cli.Command{
 		rootfsPath := context.Args().First()
 		containerId := context.Args().Tail()[0]
 		storePath := context.GlobalString("store")
+		diskLimit := context.GlobalInt64("disk-limit-size-bytes")
 
-		sm := sandbox.NewManager(&hcsclient.HCSClient{}, storePath, containerId)
-		imageSpec, err := sm.Create(rootfsPath)
+		sm := sandbox.NewManager(&hcsclient.HCSClient{}, &volume.Limiter{}, storePath, containerId)
+		imageSpec, err := sm.Create(rootfsPath, diskLimit)
 		if err != nil {
 			return err
 		}

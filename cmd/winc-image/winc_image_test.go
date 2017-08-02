@@ -3,6 +3,7 @@ package main_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -57,6 +58,32 @@ var _ = Describe("WincImage", func() {
 		Expect(exec.Command(wincImageBin, "--store", storePath, "delete", containerId).Run()).To(Succeed())
 
 		Expect(hcsshim.LayerExists(driverInfo, containerId)).To(BeFalse())
+	})
+
+	Context("when provided a disk limit", func() {
+		const diskLimitSizeBytes = 500 * 1024 * 1024
+
+		var volumeGuid string
+
+		BeforeEach(func() {
+			_, _, err := execute(wincImageBin, "--store", storePath, "create", "--disk-limit-size-bytes", strconv.Itoa(diskLimitSizeBytes), rootfsPath, containerId)
+			Expect(err).NotTo(HaveOccurred())
+
+			volumeGuid = getVolumeGuid(storePath, containerId)
+		})
+
+		AfterEach(func() {
+			Expect(exec.Command(wincImageBin, "--store", storePath, "delete", containerId).Run()).To(Succeed())
+		})
+
+		It("applies the limit to the volume", func() {
+			outBytes, err := exec.Command("powershell.exe", "-Command", fmt.Sprintf("(Get-FSRMQuota '%s').Size", volumeGuid)).CombinedOutput()
+			Expect(err).ToNot(HaveOccurred())
+
+			actualLimitSize, err := strconv.Atoi(string(outBytes))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actualLimitSize).To(Equal(diskLimitSizeBytes))
+		})
 	})
 
 	Context("when creating the sandbox layer fails", func() {
