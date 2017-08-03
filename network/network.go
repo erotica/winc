@@ -49,7 +49,7 @@ func (n *networkManager) AttachEndpointToConfig(config hcsshim.ContainerConfig, 
 	for _, net := range hnsNetworks {
 		if strings.ToUpper(net.Type) == "NAT" && net.Name != WINC_NETWORK {
 			_, err := n.hcsClient.DeleteNetwork(&net)
-			if err != nil {
+			if err != nil && err.Error() != "HNS failed with error : Element not found. " {
 				logrus.Error(err.Error())
 				return hcsshim.ContainerConfig{}, err
 			}

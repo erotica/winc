@@ -124,6 +124,33 @@ var _ = Describe("Network", func() {
 				Expect(newNAT.Type).To(Equal("nat"))
 				Expect(newNAT.Subnets).To(ConsistOf(hcsshim.Subnet{AddressPrefix: "172.35.0.0/22", GatewayAddress: "172.35.0.1"}))
 			})
+
+			Context("an existing network (not winc-nat) is deleted by another winc.exe before we delete", func() {
+				BeforeEach(func() {
+					hcsClient.DeleteNetworkReturns(nil, errors.New("HNS failed with error : Element not found"))
+				})
+
+				It("does not return an error and continues on", func() {
+					config := hcsshim.ContainerConfig{}
+					var err error
+					config, err = networkManager.AttachEndpointToConfig(config, containerId)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(config.EndpointList).To(Equal([]string{endpoint.Id}))
+				})
+			})
+
+			Context("winc gets some other HNS error deleting a network", func() {
+				BeforeEach(func() {
+					hcsClient.DeleteNetworkReturns(nil, errors.New("HNS failed with error : some other reason"))
+				})
+
+				It("returns an error", func() {
+					config := hcsshim.ContainerConfig{}
+					var err error
+					config, err = networkManager.AttachEndpointToConfig(config, containerId)
+					Expect(err).To(HaveOccurred())
+				})
+			})
 		})
 
 		Context("creating the endpoint fails", func() {
