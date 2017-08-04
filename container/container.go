@@ -8,8 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"code.cloudfoundry.org/winc/hcsclient"
-	"code.cloudfoundry.org/winc/hcscontainer"
+	"code.cloudfoundry.org/winc/hcs"
 	"github.com/Microsoft/hcsshim"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -36,15 +35,15 @@ type Mounter interface {
 type HCSClient interface {
 	GetContainerProperties(string) (hcsshim.ContainerProperties, error)
 	NameToGuid(string) (hcsshim.GUID, error)
-	CreateContainer(string, *hcsshim.ContainerConfig) (hcscontainer.Container, error)
-	OpenContainer(string) (hcscontainer.Container, error)
+	CreateContainer(string, *hcsshim.ContainerConfig) (hcs.Container, error)
+	OpenContainer(string) (hcs.Container, error)
 	IsPending(error) bool
 }
 
 //go:generate counterfeiter . NetworkManager
 type NetworkManager interface {
 	AttachEndpointToConfig(hcsshim.ContainerConfig, string) (hcsshim.ContainerConfig, error)
-	DeleteContainerEndpoints(hcscontainer.Container, string) error
+	DeleteContainerEndpoints(hcs.Container, string) error
 	DeleteEndpointsById([]string, string) error
 }
 
@@ -62,9 +61,9 @@ func NewManager(hcsClient HCSClient, mounter Mounter, networkManager NetworkMana
 func (c *Manager) Create(spec *specs.Spec) error {
 	_, err := c.hcsClient.GetContainerProperties(c.id)
 	if err == nil {
-		return &hcsclient.AlreadyExistsError{Id: c.id}
+		return &AlreadyExistsError{Id: c.id}
 	}
-	if _, ok := err.(*hcsclient.NotFoundError); !ok {
+	if _, ok := err.(*hcs.NotFoundError); !ok {
 		return err
 	}
 
@@ -75,7 +74,7 @@ func (c *Manager) Create(spec *specs.Spec) error {
 
 	volumePath := spec.Root.Path
 	if volumePath == "" {
-		return &hcsclient.MissingVolumePathError{Id: c.id}
+		return &MissingVolumePathError{Id: c.id}
 	}
 
 	layerInfos := []hcsshim.Layer{}
@@ -248,7 +247,7 @@ func (c *Manager) Exec(processSpec *specs.Process) (hcsshim.Process, error) {
 		if len(processSpec.Args) != 0 {
 			command = processSpec.Args[0]
 		}
-		return nil, &hcsclient.CouldNotCreateProcessError{Id: c.id, Command: command}
+		return nil, &CouldNotCreateProcessError{Id: c.id, Command: command}
 	}
 
 	return p, nil
@@ -277,7 +276,7 @@ func (c *Manager) containerPid(id string) (int, error) {
 	return int(process.ProcessId), nil
 }
 
-func (c *Manager) deleteContainer(container hcscontainer.Container) error {
+func (c *Manager) deleteContainer(container hcs.Container) error {
 	if err := c.networkManager.DeleteContainerEndpoints(container, c.id); err != nil {
 		logrus.Error(err.Error())
 	}
@@ -291,7 +290,7 @@ func (c *Manager) deleteContainer(container hcscontainer.Container) error {
 	return nil
 }
 
-func (c *Manager) shutdownContainer(container hcscontainer.Container) error {
+func (c *Manager) shutdownContainer(container hcs.Container) error {
 	if err := container.Shutdown(); err != nil {
 		if c.hcsClient.IsPending(err) {
 			if err := container.WaitTimeout(destroyTimeout); err != nil {
@@ -307,7 +306,7 @@ func (c *Manager) shutdownContainer(container hcscontainer.Container) error {
 	return nil
 }
 
-func (c *Manager) terminateContainer(container hcscontainer.Container) error {
+func (c *Manager) terminateContainer(container hcs.Container) error {
 	if err := container.Terminate(); err != nil {
 		if c.hcsClient.IsPending(err) {
 			if err := container.WaitTimeout(destroyTimeout); err != nil {

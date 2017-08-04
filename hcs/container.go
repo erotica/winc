@@ -1,4 +1,4 @@
-package hcscontainer
+package hcs
 
 import (
 	"time"

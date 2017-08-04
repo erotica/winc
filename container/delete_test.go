@@ -8,7 +8,7 @@ import (
 
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/container/containerfakes"
-	"code.cloudfoundry.org/winc/hcscontainer/hcscontainerfakes"
+	"code.cloudfoundry.org/winc/hcs/hcsfakes"
 	"github.com/Microsoft/hcsshim"
 
 	. "github.com/onsi/ginkgo"
@@ -21,7 +21,7 @@ var _ = Describe("Delete", func() {
 		bundlePath       string
 		hcsClient        *containerfakes.FakeHCSClient
 		mounter          *containerfakes.FakeMounter
-		fakeContainer    *hcscontainerfakes.FakeContainer
+		fakeContainer    *hcsfakes.FakeContainer
 		networkManager   *containerfakes.FakeNetworkManager
 		containerManager *container.Manager
 	)
@@ -35,7 +35,7 @@ var _ = Describe("Delete", func() {
 
 		hcsClient = &containerfakes.FakeHCSClient{}
 		mounter = &containerfakes.FakeMounter{}
-		fakeContainer = &hcscontainerfakes.FakeContainer{}
+		fakeContainer = &hcsfakes.FakeContainer{}
 		networkManager = &containerfakes.FakeNetworkManager{}
 		containerManager = container.NewManager(hcsClient, mounter, networkManager, "", containerId)
 	})

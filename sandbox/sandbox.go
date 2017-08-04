@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"code.cloudfoundry.org/winc/hcsclient"
-
 	"github.com/Microsoft/hcsshim"
 	"github.com/sirupsen/logrus"
 )
@@ -95,7 +93,7 @@ func (s *Manager) Create(rootfs string, diskLimit uint64) (*ImageSpec, error) {
 	if err != nil {
 		return nil, err
 	} else if volumePath == "" {
-		return nil, &hcsclient.MissingVolumePathError{Id: s.id}
+		return nil, &MissingVolumePathError{Id: s.id}
 	}
 
 	if err := s.limiter.SetDiskLimit(volumePath, diskLimit); err != nil {

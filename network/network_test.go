@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 
-	"code.cloudfoundry.org/winc/hcscontainer/hcscontainerfakes"
+	"code.cloudfoundry.org/winc/hcs/hcsfakes"
 	"code.cloudfoundry.org/winc/network"
 	"code.cloudfoundry.org/winc/network/networkfakes"
 	"github.com/Microsoft/hcsshim"
@@ -214,13 +214,13 @@ var _ = Describe("Network", func() {
 
 	Describe("DeleteContainerEndpoints", func() {
 		var (
-			fakeContainer        *hcscontainerfakes.FakeContainer
+			fakeContainer        *hcsfakes.FakeContainer
 			containerId          string
 			endpoint1, endpoint2 *hcsshim.HNSEndpoint
 		)
 
 		BeforeEach(func() {
-			fakeContainer = &hcscontainerfakes.FakeContainer{}
+			fakeContainer = &hcsfakes.FakeContainer{}
 			containerId = "container-id"
 
 			fakeContainer.StatisticsReturns(hcsshim.Statistics{

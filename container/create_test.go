@@ -9,8 +9,8 @@ import (
 
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/container/containerfakes"
-	"code.cloudfoundry.org/winc/hcsclient"
-	"code.cloudfoundry.org/winc/hcscontainer/hcscontainerfakes"
+	"code.cloudfoundry.org/winc/hcs"
+	"code.cloudfoundry.org/winc/hcs/hcsfakes"
 	"github.com/Microsoft/hcsshim"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -72,12 +72,12 @@ var _ = Describe("Create", func() {
 	Context("when the specified container does not already exist", func() {
 		var (
 			expectedHcsshimLayers []hcsshim.Layer
-			fakeContainer         hcscontainerfakes.FakeContainer
+			fakeContainer         hcsfakes.FakeContainer
 		)
 
 		BeforeEach(func() {
-			fakeContainer = hcscontainerfakes.FakeContainer{}
-			hcsClient.GetContainerPropertiesReturns(hcsshim.ContainerProperties{}, &hcsclient.NotFoundError{})
+			fakeContainer = hcsfakes.FakeContainer{}
+			hcsClient.GetContainerPropertiesReturns(hcsshim.ContainerProperties{}, &hcs.NotFoundError{})
 
 			expectedHcsshimLayers = []hcsshim.Layer{}
 			for i, l := range layerFolders {
@@ -138,7 +138,7 @@ var _ = Describe("Create", func() {
 
 			It("returns an error", func() {
 				err := containerManager.Create(spec)
-				Expect(err).To(Equal(&hcsclient.MissingVolumePathError{Id: containerId}))
+				Expect(err).To(Equal(&container.MissingVolumePathError{Id: containerId}))
 			})
 		})
 

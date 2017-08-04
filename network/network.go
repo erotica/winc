@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"code.cloudfoundry.org/winc/hcscontainer"
+	"code.cloudfoundry.org/winc/hcs"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/sirupsen/logrus"
@@ -155,7 +155,7 @@ func (n *Manager) createEndpoint(endpoint *hcsshim.HNSEndpoint) (string, error) 
 	return createdEndpoint.Id, nil
 }
 
-func (n *Manager) DeleteContainerEndpoints(container hcscontainer.Container, containerID string) error {
+func (n *Manager) DeleteContainerEndpoints(container hcs.Container, containerID string) error {
 	stats, err := container.Statistics()
 	if err != nil {
 		return err

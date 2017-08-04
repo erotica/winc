@@ -8,8 +8,7 @@ import (
 
 	"code.cloudfoundry.org/winc/container"
 	"code.cloudfoundry.org/winc/container/containerfakes"
-	"code.cloudfoundry.org/winc/hcsclient"
-	"code.cloudfoundry.org/winc/hcscontainer/hcscontainerfakes"
+	"code.cloudfoundry.org/winc/hcs/hcsfakes"
 
 	"github.com/Microsoft/hcsshim"
 	. "github.com/onsi/ginkgo"
@@ -24,7 +23,7 @@ var _ = Describe("Exec", func() {
 		hcsClient        *containerfakes.FakeHCSClient
 		mounter          *containerfakes.FakeMounter
 		containerManager *container.Manager
-		fakeContainer    *hcscontainerfakes.FakeContainer
+		fakeContainer    *hcsfakes.FakeContainer
 		processSpec      specs.Process
 	)
 
@@ -38,7 +37,7 @@ var _ = Describe("Exec", func() {
 		hcsClient = &containerfakes.FakeHCSClient{}
 		mounter = &containerfakes.FakeMounter{}
 		containerManager = container.NewManager(hcsClient, mounter, nil, "", containerId)
-		fakeContainer = &hcscontainerfakes.FakeContainer{}
+		fakeContainer = &hcsfakes.FakeContainer{}
 	})
 
 	AfterEach(func() {
@@ -160,10 +159,10 @@ var _ = Describe("Exec", func() {
 		})
 
 		Context("when creating a process in the container fails", func() {
-			var couldNotCreateProcessError *hcsclient.CouldNotCreateProcessError
+			var couldNotCreateProcessError *container.CouldNotCreateProcessError
 
 			BeforeEach(func() {
-				couldNotCreateProcessError = &hcsclient.CouldNotCreateProcessError{
+				couldNotCreateProcessError = &container.CouldNotCreateProcessError{
 					Id:      containerId,
 					Command: "powershell.exe",
 				}
@@ -182,7 +181,7 @@ var _ = Describe("Exec", func() {
 		var missingContainerError = errors.New("container does not exist")
 
 		BeforeEach(func() {
-			hcsClient.OpenContainerReturns(&hcscontainerfakes.FakeContainer{}, missingContainerError)
+			hcsClient.OpenContainerReturns(&hcsfakes.FakeContainer{}, missingContainerError)
 		})
 
 		It("errors", func() {

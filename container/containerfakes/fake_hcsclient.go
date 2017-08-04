@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"code.cloudfoundry.org/winc/container"
-	"code.cloudfoundry.org/winc/hcscontainer"
+	"code.cloudfoundry.org/winc/hcs"
 	"github.com/Microsoft/hcsshim"
 )
 
@@ -36,31 +36,31 @@ type FakeHCSClient struct {
 		result1 hcsshim.GUID
 		result2 error
 	}
-	CreateContainerStub        func(string, *hcsshim.ContainerConfig) (hcscontainer.Container, error)
+	CreateContainerStub        func(string, *hcsshim.ContainerConfig) (hcs.Container, error)
 	createContainerMutex       sync.RWMutex
 	createContainerArgsForCall []struct {
 		arg1 string
 		arg2 *hcsshim.ContainerConfig
 	}
 	createContainerReturns struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}
 	createContainerReturnsOnCall map[int]struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}
-	OpenContainerStub        func(string) (hcscontainer.Container, error)
+	OpenContainerStub        func(string) (hcs.Container, error)
 	openContainerMutex       sync.RWMutex
 	openContainerArgsForCall []struct {
 		arg1 string
 	}
 	openContainerReturns struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}
 	openContainerReturnsOnCall map[int]struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}
 	IsPendingStub        func(error) bool
@@ -180,7 +180,7 @@ func (fake *FakeHCSClient) NameToGuidReturnsOnCall(i int, result1 hcsshim.GUID, 
 	}{result1, result2}
 }
 
-func (fake *FakeHCSClient) CreateContainer(arg1 string, arg2 *hcsshim.ContainerConfig) (hcscontainer.Container, error) {
+func (fake *FakeHCSClient) CreateContainer(arg1 string, arg2 *hcsshim.ContainerConfig) (hcs.Container, error) {
 	fake.createContainerMutex.Lock()
 	ret, specificReturn := fake.createContainerReturnsOnCall[len(fake.createContainerArgsForCall)]
 	fake.createContainerArgsForCall = append(fake.createContainerArgsForCall, struct {
@@ -210,29 +210,29 @@ func (fake *FakeHCSClient) CreateContainerArgsForCall(i int) (string, *hcsshim.C
 	return fake.createContainerArgsForCall[i].arg1, fake.createContainerArgsForCall[i].arg2
 }
 
-func (fake *FakeHCSClient) CreateContainerReturns(result1 hcscontainer.Container, result2 error) {
+func (fake *FakeHCSClient) CreateContainerReturns(result1 hcs.Container, result2 error) {
 	fake.CreateContainerStub = nil
 	fake.createContainerReturns = struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeHCSClient) CreateContainerReturnsOnCall(i int, result1 hcscontainer.Container, result2 error) {
+func (fake *FakeHCSClient) CreateContainerReturnsOnCall(i int, result1 hcs.Container, result2 error) {
 	fake.CreateContainerStub = nil
 	if fake.createContainerReturnsOnCall == nil {
 		fake.createContainerReturnsOnCall = make(map[int]struct {
-			result1 hcscontainer.Container
+			result1 hcs.Container
 			result2 error
 		})
 	}
 	fake.createContainerReturnsOnCall[i] = struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeHCSClient) OpenContainer(arg1 string) (hcscontainer.Container, error) {
+func (fake *FakeHCSClient) OpenContainer(arg1 string) (hcs.Container, error) {
 	fake.openContainerMutex.Lock()
 	ret, specificReturn := fake.openContainerReturnsOnCall[len(fake.openContainerArgsForCall)]
 	fake.openContainerArgsForCall = append(fake.openContainerArgsForCall, struct {
@@ -261,24 +261,24 @@ func (fake *FakeHCSClient) OpenContainerArgsForCall(i int) string {
 	return fake.openContainerArgsForCall[i].arg1
 }
 
-func (fake *FakeHCSClient) OpenContainerReturns(result1 hcscontainer.Container, result2 error) {
+func (fake *FakeHCSClient) OpenContainerReturns(result1 hcs.Container, result2 error) {
 	fake.OpenContainerStub = nil
 	fake.openContainerReturns = struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeHCSClient) OpenContainerReturnsOnCall(i int, result1 hcscontainer.Container, result2 error) {
+func (fake *FakeHCSClient) OpenContainerReturnsOnCall(i int, result1 hcs.Container, result2 error) {
 	fake.OpenContainerStub = nil
 	if fake.openContainerReturnsOnCall == nil {
 		fake.openContainerReturnsOnCall = make(map[int]struct {
-			result1 hcscontainer.Container
+			result1 hcs.Container
 			result2 error
 		})
 	}
 	fake.openContainerReturnsOnCall[i] = struct {
-		result1 hcscontainer.Container
+		result1 hcs.Container
 		result2 error
 	}{result1, result2}
 }

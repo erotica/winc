@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"code.cloudfoundry.org/winc/container"
-	"code.cloudfoundry.org/winc/hcscontainer"
+	"code.cloudfoundry.org/winc/hcs"
 	"github.com/Microsoft/hcsshim"
 )
 
@@ -24,10 +24,10 @@ type FakeNetworkManager struct {
 		result1 hcsshim.ContainerConfig
 		result2 error
 	}
-	DeleteContainerEndpointsStub        func(hcscontainer.Container, string) error
+	DeleteContainerEndpointsStub        func(hcs.Container, string) error
 	deleteContainerEndpointsMutex       sync.RWMutex
 	deleteContainerEndpointsArgsForCall []struct {
-		arg1 hcscontainer.Container
+		arg1 hcs.Container
 		arg2 string
 	}
 	deleteContainerEndpointsReturns struct {
@@ -104,11 +104,11 @@ func (fake *FakeNetworkManager) AttachEndpointToConfigReturnsOnCall(i int, resul
 	}{result1, result2}
 }
 
-func (fake *FakeNetworkManager) DeleteContainerEndpoints(arg1 hcscontainer.Container, arg2 string) error {
+func (fake *FakeNetworkManager) DeleteContainerEndpoints(arg1 hcs.Container, arg2 string) error {
 	fake.deleteContainerEndpointsMutex.Lock()
 	ret, specificReturn := fake.deleteContainerEndpointsReturnsOnCall[len(fake.deleteContainerEndpointsArgsForCall)]
 	fake.deleteContainerEndpointsArgsForCall = append(fake.deleteContainerEndpointsArgsForCall, struct {
-		arg1 hcscontainer.Container
+		arg1 hcs.Container
 		arg2 string
 	}{arg1, arg2})
 	fake.recordInvocation("DeleteContainerEndpoints", []interface{}{arg1, arg2})
@@ -128,7 +128,7 @@ func (fake *FakeNetworkManager) DeleteContainerEndpointsCallCount() int {
 	return len(fake.deleteContainerEndpointsArgsForCall)
 }
 
-func (fake *FakeNetworkManager) DeleteContainerEndpointsArgsForCall(i int) (hcscontainer.Container, string) {
+func (fake *FakeNetworkManager) DeleteContainerEndpointsArgsForCall(i int) (hcs.Container, string) {
 	fake.deleteContainerEndpointsMutex.RLock()
 	defer fake.deleteContainerEndpointsMutex.RUnlock()
 	return fake.deleteContainerEndpointsArgsForCall[i].arg1, fake.deleteContainerEndpointsArgsForCall[i].arg2
