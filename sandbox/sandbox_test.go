@@ -28,7 +28,7 @@ var _ = Describe("Sandbox", func() {
 		containerId        string
 		hcsClient          *sandboxfakes.FakeHCSClient
 		limiter            *sandboxfakes.FakeLimiter
-		sandboxManager     *sandbox.SandboxManager
+		sandboxManager     *sandbox.Manager
 		expectedDriverInfo hcsshim.DriverInfo
 		rootfsParents      []byte
 	)

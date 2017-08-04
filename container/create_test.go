@@ -27,7 +27,7 @@ var _ = Describe("Create", func() {
 		hcsClient        *containerfakes.FakeHCSClient
 		mounter          *containerfakes.FakeMounter
 		networkManager   *containerfakes.FakeNetworkManager
-		containerManager *container.ContainerManager
+		containerManager *container.Manager
 		spec             *specs.Spec
 		containerVolume  = "containervolume"
 	)

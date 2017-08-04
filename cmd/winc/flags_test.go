@@ -185,7 +185,7 @@ var _ = Describe("Flags", func() {
 	Context("when passed '--root'", func() {
 		var (
 			storePath string
-			cm        *container.ContainerManager
+			cm        *container.Manager
 		)
 
 		BeforeEach(func() {

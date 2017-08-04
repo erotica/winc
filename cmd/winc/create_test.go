@@ -29,7 +29,7 @@ var _ = Describe("Create", func() {
 		config      []byte
 		containerId string
 		client      *hcsclient.HCSClient
-		cm          *container.ContainerManager
+		cm          *container.Manager
 		bundleSpec  specs.Spec
 		err         error
 		stdOut      *bytes.Buffer

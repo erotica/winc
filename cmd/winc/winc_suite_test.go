@@ -141,7 +141,7 @@ func execute(cmd string, args ...string) error {
 	return c.Run()
 }
 
-func networkManager(client *hcsclient.HCSClient) *network.NetworkManager {
+func networkManager(client *hcsclient.HCSClient) *network.Manager {
 	tracker := &port_allocator.Tracker{
 		StartPort: 40000,
 		Capacity:  5000,
@@ -155,7 +155,7 @@ func networkManager(client *hcsclient.HCSClient) *network.NetworkManager {
 		Locker:     locker,
 	}
 
-	return network.NewNetworkManager(client, pa)
+	return network.NewManager(client, pa)
 }
 
 func allEndpoints(containerID string) []string {

@@ -16,7 +16,7 @@ import (
 
 var _ = Describe("Network", func() {
 	var (
-		networkManager *network.NetworkManager
+		networkManager *network.Manager
 		portAllocator  *networkfakes.FakePortAllocator
 		hcsClient      *networkfakes.FakeHCSClient
 	)
@@ -24,7 +24,7 @@ var _ = Describe("Network", func() {
 	BeforeEach(func() {
 		hcsClient = &networkfakes.FakeHCSClient{}
 		portAllocator = &networkfakes.FakePortAllocator{}
-		networkManager = network.NewNetworkManager(hcsClient, portAllocator)
+		networkManager = network.NewManager(hcsClient, portAllocator)
 
 		logrus.SetOutput(ioutil.Discard)
 	})

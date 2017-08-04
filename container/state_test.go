@@ -23,7 +23,7 @@ var _ = Describe("State", func() {
 		bundlePath       string
 		hcsClient        *containerfakes.FakeHCSClient
 		mounter          *containerfakes.FakeMounter
-		containerManager *container.ContainerManager
+		containerManager *container.Manager
 		fakeContainer    *hcscontainerfakes.FakeContainer
 	)
 

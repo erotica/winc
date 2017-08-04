@@ -176,7 +176,7 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func wireContainerManager(rootPath, bundlePath, containerId string) (*container.ContainerManager, error) {
+func wireContainerManager(rootPath, bundlePath, containerId string) (*container.Manager, error) {
 	client := hcsclient.HCSClient{}
 
 	if bundlePath == "" {
@@ -204,7 +204,7 @@ func wireContainerManager(rootPath, bundlePath, containerId string) (*container.
 		Locker:     locker,
 	}
 
-	nm := network.NewNetworkManager(&client, pa)
+	nm := network.NewManager(&client, pa)
 
 	return container.NewManager(&client, &volume.Mounter{}, nm, rootPath, bundlePath), nil
 }

@@ -30,19 +30,19 @@ type HCSClient interface {
 	DeleteEndpoint(*hcsshim.HNSEndpoint) (*hcsshim.HNSEndpoint, error)
 }
 
-type NetworkManager struct {
+type Manager struct {
 	hcsClient     HCSClient
 	portAllocator PortAllocator
 }
 
-func NewNetworkManager(client HCSClient, portAllocator PortAllocator) *NetworkManager {
-	return &NetworkManager{
+func NewManager(client HCSClient, portAllocator PortAllocator) *Manager {
+	return &Manager{
 		hcsClient:     client,
 		portAllocator: portAllocator,
 	}
 }
 
-func (n *NetworkManager) AttachEndpointToConfig(config hcsshim.ContainerConfig, containerID string) (hcsshim.ContainerConfig, error) {
+func (n *Manager) AttachEndpointToConfig(config hcsshim.ContainerConfig, containerID string) (hcsshim.ContainerConfig, error) {
 	wincNATNetwork, err := n.getWincNATNetwork()
 	if err != nil {
 		logrus.Error(err.Error())
@@ -80,7 +80,7 @@ func (n *NetworkManager) AttachEndpointToConfig(config hcsshim.ContainerConfig, 
 	return config, nil
 }
 
-func (n *NetworkManager) getWincNATNetwork() (*hcsshim.HNSNetwork, error) {
+func (n *Manager) getWincNATNetwork() (*hcsshim.HNSNetwork, error) {
 	var wincNATNetwork *hcsshim.HNSNetwork
 	var err error
 
@@ -115,7 +115,7 @@ func (n *NetworkManager) getWincNATNetwork() (*hcsshim.HNSNetwork, error) {
 	return wincNATNetwork, nil
 }
 
-func (n *NetworkManager) portMapping(containerPort int, containerID string) (json.RawMessage, error) {
+func (n *Manager) portMapping(containerPort int, containerID string) (json.RawMessage, error) {
 	hostPort, err := n.portAllocator.AllocatePort(containerID, 0)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (n *NetworkManager) portMapping(containerPort int, containerID string) (jso
 	return portMappingJSON, nil
 }
 
-func (n *NetworkManager) createEndpoint(endpoint *hcsshim.HNSEndpoint) (string, error) {
+func (n *Manager) createEndpoint(endpoint *hcsshim.HNSEndpoint) (string, error) {
 	var createErr error
 	var createdEndpoint *hcsshim.HNSEndpoint
 	for i := 0; i < 3 && createdEndpoint == nil; i++ {
@@ -155,7 +155,7 @@ func (n *NetworkManager) createEndpoint(endpoint *hcsshim.HNSEndpoint) (string, 
 	return createdEndpoint.Id, nil
 }
 
-func (n *NetworkManager) DeleteContainerEndpoints(container hcscontainer.Container, containerID string) error {
+func (n *Manager) DeleteContainerEndpoints(container hcscontainer.Container, containerID string) error {
 	stats, err := container.Statistics()
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (n *NetworkManager) DeleteContainerEndpoints(container hcscontainer.Contain
 	return n.DeleteEndpointsById(endpointIDs, containerID)
 }
 
-func (n *NetworkManager) DeleteEndpointsById(ids []string, containerID string) error {
+func (n *Manager) DeleteEndpointsById(ids []string, containerID string) error {
 	var deleteErrors []error
 	for _, endpointId := range ids {
 		endpoint, err := n.hcsClient.GetHNSEndpointByID(endpointId)
@@ -195,7 +195,7 @@ func (n *NetworkManager) DeleteEndpointsById(ids []string, containerID string) e
 	return n.portAllocator.ReleaseAllPorts(containerID)
 }
 
-func (n *NetworkManager) cleanupPorts(containerID string) {
+func (n *Manager) cleanupPorts(containerID string) {
 	releaseErr := n.portAllocator.ReleaseAllPorts(containerID)
 	if releaseErr != nil {
 		logrus.Error(releaseErr.Error())

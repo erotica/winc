@@ -23,7 +23,7 @@ var _ = Describe("Delete", func() {
 		mounter          *containerfakes.FakeMounter
 		fakeContainer    *hcscontainerfakes.FakeContainer
 		networkManager   *containerfakes.FakeNetworkManager
-		containerManager *container.ContainerManager
+		containerManager *container.Manager
 	)
 
 	BeforeEach(func() {

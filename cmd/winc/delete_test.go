@@ -30,7 +30,7 @@ var _ = Describe("Delete", func() {
 	Context("when provided an existing container id", func() {
 		var (
 			containerId string
-			cm          *container.ContainerManager
+			cm          *container.Manager
 		)
 
 		BeforeEach(func() {

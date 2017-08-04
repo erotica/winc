@@ -30,7 +30,7 @@ var _ = Describe("State", func() {
 	Context("given an existing container id", func() {
 		var (
 			containerId string
-			cm          *container.ContainerManager
+			cm          *container.Manager
 			actualState *specs.State
 			client      *hcsclient.HCSClient
 		)

@@ -24,7 +24,7 @@ import (
 var _ = Describe("Exec", func() {
 	var (
 		containerId string
-		cm          *container.ContainerManager
+		cm          *container.Manager
 		client      hcsclient.HCSClient
 		stdOut      *bytes.Buffer
 		stdErr      *bytes.Buffer

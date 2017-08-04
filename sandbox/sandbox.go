@@ -34,20 +34,20 @@ type HCSClient interface {
 	DestroyLayer(hcsshim.DriverInfo, string) error
 }
 
-type SandboxManager struct {
+type Manager struct {
 	hcsClient  HCSClient
 	limiter    Limiter
 	id         string
 	driverInfo hcsshim.DriverInfo
 }
 
-func NewManager(hcsClient HCSClient, limiter Limiter, storePath, containerId string) *SandboxManager {
+func NewManager(hcsClient HCSClient, limiter Limiter, storePath, containerId string) *Manager {
 	driverInfo := hcsshim.DriverInfo{
 		HomeDir: storePath,
 		Flavour: 1,
 	}
 
-	return &SandboxManager{
+	return &Manager{
 		hcsClient:  hcsClient,
 		limiter:    limiter,
 		id:         containerId,
@@ -55,7 +55,7 @@ func NewManager(hcsClient HCSClient, limiter Limiter, storePath, containerId str
 	}
 }
 
-func (s *SandboxManager) Create(rootfs string, diskLimit uint64) (*ImageSpec, error) {
+func (s *Manager) Create(rootfs string, diskLimit uint64) (*ImageSpec, error) {
 	err := os.MkdirAll(s.driverInfo.HomeDir, 0755)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (s *SandboxManager) Create(rootfs string, diskLimit uint64) (*ImageSpec, er
 	}, nil
 }
 
-func (s *SandboxManager) Delete() error {
+func (s *Manager) Delete() error {
 	exists, err := s.hcsClient.LayerExists(s.driverInfo, s.id)
 	if err != nil {
 		return err
