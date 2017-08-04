@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/winc/hcsclient"
-	"code.cloudfoundry.org/winc/network"
+	"code.cloudfoundry.org/winc/hcscontainer"
 	"github.com/Microsoft/hcsshim"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -17,17 +17,10 @@ import (
 
 const destroyTimeout = time.Minute
 
-type ContainerManager interface {
-	Create(spec *specs.Spec) error
-	Delete() error
-	State() (*specs.State, error)
-	Exec(*specs.Process) (hcsshim.Process, error)
-}
-
-type containerManager struct {
-	hcsClient      hcsclient.Client
+type ContainerManager struct {
+	hcsClient      HCSClient
 	mounter        Mounter
-	networkManager network.NetworkManager
+	networkManager NetworkManager
 	rootPath       string
 	bundlePath     string
 	id             string
@@ -39,8 +32,24 @@ type Mounter interface {
 	Unmount(pid int) error
 }
 
-func NewManager(hcsClient hcsclient.Client, mounter Mounter, networkManager network.NetworkManager, rootPath, bundlePath string) ContainerManager {
-	return &containerManager{
+//go:generate counterfeiter . HCSClient
+type HCSClient interface {
+	GetContainerProperties(string) (hcsshim.ContainerProperties, error)
+	NameToGuid(string) (hcsshim.GUID, error)
+	CreateContainer(string, *hcsshim.ContainerConfig) (hcscontainer.Container, error)
+	OpenContainer(string) (hcscontainer.Container, error)
+	IsPending(error) bool
+}
+
+//go:generate counterfeiter . NetworkManager
+type NetworkManager interface {
+	AttachEndpointToConfig(hcsshim.ContainerConfig, string) (hcsshim.ContainerConfig, error)
+	DeleteContainerEndpoints(hcscontainer.Container, string) error
+	DeleteEndpointsById([]string, string) error
+}
+
+func NewManager(hcsClient HCSClient, mounter Mounter, networkManager NetworkManager, rootPath, bundlePath string) *ContainerManager {
+	return &ContainerManager{
 		hcsClient:      hcsClient,
 		mounter:        mounter,
 		networkManager: networkManager,
@@ -50,7 +59,7 @@ func NewManager(hcsClient hcsclient.Client, mounter Mounter, networkManager netw
 	}
 }
 
-func (c *containerManager) Create(spec *specs.Spec) error {
+func (c *ContainerManager) Create(spec *specs.Spec) error {
 	_, err := c.hcsClient.GetContainerProperties(c.id)
 	if err == nil {
 		return &hcsclient.AlreadyExistsError{Id: c.id}
@@ -161,7 +170,7 @@ func (c *containerManager) Create(spec *specs.Spec) error {
 	return nil
 }
 
-func (c *containerManager) Delete() error {
+func (c *ContainerManager) Delete() error {
 	pid, err := c.containerPid(c.id)
 	if err != nil {
 		return err
@@ -185,7 +194,7 @@ func (c *containerManager) Delete() error {
 	return unmountErr
 }
 
-func (c *containerManager) State() (*specs.State, error) {
+func (c *ContainerManager) State() (*specs.State, error) {
 	cp, err := c.hcsClient.GetContainerProperties(c.id)
 	if err != nil {
 		return nil, err
@@ -212,7 +221,7 @@ func (c *containerManager) State() (*specs.State, error) {
 	}, nil
 }
 
-func (c *containerManager) Exec(processSpec *specs.Process) (hcsshim.Process, error) {
+func (c *ContainerManager) Exec(processSpec *specs.Process) (hcsshim.Process, error) {
 	container, err := c.hcsClient.OpenContainer(c.id)
 	if err != nil {
 		return nil, err
@@ -245,7 +254,7 @@ func (c *containerManager) Exec(processSpec *specs.Process) (hcsshim.Process, er
 	return p, nil
 }
 
-func (c *containerManager) containerPid(id string) (int, error) {
+func (c *ContainerManager) containerPid(id string) (int, error) {
 	container, err := c.hcsClient.OpenContainer(id)
 	if err != nil {
 		return -1, err
@@ -268,7 +277,7 @@ func (c *containerManager) containerPid(id string) (int, error) {
 	return int(process.ProcessId), nil
 }
 
-func (c *containerManager) deleteContainer(container hcsshim.Container) error {
+func (c *ContainerManager) deleteContainer(container hcscontainer.Container) error {
 	if err := c.networkManager.DeleteContainerEndpoints(container, c.id); err != nil {
 		logrus.Error(err.Error())
 	}
@@ -282,7 +291,7 @@ func (c *containerManager) deleteContainer(container hcsshim.Container) error {
 	return nil
 }
 
-func (c *containerManager) shutdownContainer(container hcsshim.Container) error {
+func (c *ContainerManager) shutdownContainer(container hcscontainer.Container) error {
 	if err := container.Shutdown(); err != nil {
 		if c.hcsClient.IsPending(err) {
 			if err := container.WaitTimeout(destroyTimeout); err != nil {
@@ -298,7 +307,7 @@ func (c *containerManager) shutdownContainer(container hcsshim.Container) error 
 	return nil
 }
 
-func (c *containerManager) terminateContainer(container hcsshim.Container) error {
+func (c *ContainerManager) terminateContainer(container hcscontainer.Container) error {
 	if err := container.Terminate(); err != nil {
 		if c.hcsClient.IsPending(err) {
 			if err := container.WaitTimeout(destroyTimeout); err != nil {

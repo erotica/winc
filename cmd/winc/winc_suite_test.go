@@ -141,7 +141,7 @@ func execute(cmd string, args ...string) error {
 	return c.Run()
 }
 
-func networkManager(client hcsclient.Client) network.NetworkManager {
+func networkManager(client *hcsclient.HCSClient) *network.NetworkManager {
 	tracker := &port_allocator.Tracker{
 		StartPort: 40000,
 		Capacity:  5000,
@@ -183,7 +183,7 @@ func containerExists(containerId string) bool {
 	return len(containers) > 0
 }
 
-func containerProcesses(client hcsclient.Client, containerId, filter string) []hcsshim.ProcessListItem {
+func containerProcesses(client *hcsclient.HCSClient, containerId, filter string) []hcsshim.ProcessListItem {
 	container, err := client.OpenContainer(containerId)
 	Expect(err).To(Succeed())
 

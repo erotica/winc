@@ -176,7 +176,7 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func wireContainerManager(rootPath, bundlePath, containerId string) (container.ContainerManager, error) {
+func wireContainerManager(rootPath, bundlePath, containerId string) (*container.ContainerManager, error) {
 	client := hcsclient.HCSClient{}
 
 	if bundlePath == "" {

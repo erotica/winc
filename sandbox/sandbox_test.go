@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/winc/hcsclient"
-	"code.cloudfoundry.org/winc/hcsclient/hcsclientfakes"
 	"code.cloudfoundry.org/winc/sandbox"
 	"code.cloudfoundry.org/winc/sandbox/sandboxfakes"
 	"github.com/Microsoft/hcsshim"
@@ -27,9 +26,9 @@ var _ = Describe("Sandbox", func() {
 		storePath          string
 		rootfs             string
 		containerId        string
-		hcsClient          *hcsclientfakes.FakeClient
+		hcsClient          *sandboxfakes.FakeHCSClient
 		limiter            *sandboxfakes.FakeLimiter
-		sandboxManager     sandbox.SandboxManager
+		sandboxManager     *sandbox.SandboxManager
 		expectedDriverInfo hcsshim.DriverInfo
 		rootfsParents      []byte
 	)
@@ -45,7 +44,7 @@ var _ = Describe("Sandbox", func() {
 		rand.Seed(time.Now().UnixNano())
 		containerId = strconv.Itoa(rand.Int())
 
-		hcsClient = &hcsclientfakes.FakeClient{}
+		hcsClient = &sandboxfakes.FakeHCSClient{}
 		limiter = &sandboxfakes.FakeLimiter{}
 		sandboxManager = sandbox.NewManager(hcsClient, limiter, storePath, containerId)
 

@@ -1,68 +1,9 @@
 package hcsclient
 
 import (
-	"io"
-	"time"
-
+	"code.cloudfoundry.org/winc/hcscontainer"
 	"github.com/Microsoft/hcsshim"
 )
-
-//go:generate counterfeiter . Client
-type Client interface {
-	GetContainers(q hcsshim.ComputeSystemQuery) ([]hcsshim.ContainerProperties, error)
-	NameToGuid(name string) (hcsshim.GUID, error)
-	GetLayerMountPath(info hcsshim.DriverInfo, id string) (string, error)
-	CreateContainer(id string, config *hcsshim.ContainerConfig) (hcsshim.Container, error)
-	OpenContainer(id string) (hcsshim.Container, error)
-	IsPending(err error) bool
-	CreateSandboxLayer(info hcsshim.DriverInfo, layerId, parentId string, parentLayerPaths []string) error
-	ActivateLayer(info hcsshim.DriverInfo, id string) error
-	PrepareLayer(info hcsshim.DriverInfo, layerId string, parentLayerPaths []string) error
-	UnprepareLayer(info hcsshim.DriverInfo, layerId string) error
-	DeactivateLayer(info hcsshim.DriverInfo, id string) error
-	DestroyLayer(info hcsshim.DriverInfo, id string) error
-	LayerExists(info hcsshim.DriverInfo, id string) (bool, error)
-	GetContainerProperties(id string) (hcsshim.ContainerProperties, error)
-	HNSListNetworkRequest() ([]hcsshim.HNSNetwork, error)
-	GetHNSNetworkByName(string) (*hcsshim.HNSNetwork, error)
-	GetHNSEndpointByID(id string) (*hcsshim.HNSEndpoint, error)
-	CreateEndpoint(*hcsshim.HNSEndpoint) (*hcsshim.HNSEndpoint, error)
-	DeleteEndpoint(*hcsshim.HNSEndpoint) (*hcsshim.HNSEndpoint, error)
-	CreateNetwork(*hcsshim.HNSNetwork) (*hcsshim.HNSNetwork, error)
-	DeleteNetwork(*hcsshim.HNSNetwork) (*hcsshim.HNSNetwork, error)
-}
-
-//go:generate counterfeiter . Container
-type Container interface {
-	Start() error
-	Shutdown() error
-	Terminate() error
-	Wait() error
-	WaitTimeout(time.Duration) error
-	Pause() error
-	Resume() error
-	HasPendingUpdates() (bool, error)
-	Statistics() (hcsshim.Statistics, error)
-	ProcessList() ([]hcsshim.ProcessListItem, error)
-	MappedVirtualDisks() (map[int]hcsshim.MappedVirtualDiskController, error)
-	CreateProcess(c *hcsshim.ProcessConfig) (hcsshim.Process, error)
-	OpenProcess(pid int) (hcsshim.Process, error)
-	Close() error
-	Modify(config *hcsshim.ResourceModificationRequestResponse) error
-}
-
-//go:generate counterfeiter . Process
-type Process interface {
-	Pid() int
-	Kill() error
-	Wait() error
-	WaitTimeout(time.Duration) error
-	ExitCode() (int, error)
-	ResizeConsole(width, height uint16) error
-	Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, error)
-	CloseStdin() error
-	Close() error
-}
 
 type HCSClient struct{}
 
@@ -78,11 +19,11 @@ func (c *HCSClient) GetLayerMountPath(info hcsshim.DriverInfo, id string) (strin
 	return hcsshim.GetLayerMountPath(info, id)
 }
 
-func (c *HCSClient) CreateContainer(id string, config *hcsshim.ContainerConfig) (hcsshim.Container, error) {
+func (c *HCSClient) CreateContainer(id string, config *hcsshim.ContainerConfig) (hcscontainer.Container, error) {
 	return hcsshim.CreateContainer(id, config)
 }
 
-func (c *HCSClient) OpenContainer(id string) (hcsshim.Container, error) {
+func (c *HCSClient) OpenContainer(id string) (hcscontainer.Container, error) {
 	return hcsshim.OpenContainer(id)
 }
 
