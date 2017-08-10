@@ -3,12 +3,17 @@ package main_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"code.cloudfoundry.org/winc/network"
+
+	"github.com/Microsoft/hcsshim"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -110,4 +115,63 @@ var _ = Describe("up", func() {
 			Expect(stdErr.String()).To(ContainSubstring("invalid port mapping"))
 		})
 	})
+
+	Context("stdin contains a net out rule request with single ip/port", func() {
+		type firewall struct {
+			Protocol   string `json:"Protocol"`
+			RemotePort string `json:"RemotePort"`
+		}
+
+		var containerIp string
+
+		const getContainerFirewall = `Get-NetFirewallAddressFilter | ?{$_.RemoteAddress -eq "8.8.8.8" -and $_.LocalAddress -eq "%s"} | Get-NetFirewallRule | Get-NetFirewallPortFilter | ConvertTo-Json`
+
+		AfterEach(func() {
+			Expect(exec.Command(wincNetworkBin, "--action", "down", "--handle", containerId).Run()).To(Succeed())
+			parsedCmd := fmt.Sprintf(getContainerFirewall, containerIp)
+			output, err := exec.Command("powershell.exe", "-Command", parsedCmd).CombinedOutput()
+			Expect(err).To(Succeed())
+			Expect(string(output)).To(BeEmpty())
+		})
+
+		It("creates the correct firewall rule", func() {
+			cmd := exec.Command(wincNetworkBin, "--action", "up", "--handle", containerId)
+			netOutRule := network.NetOutRule{
+				Protocol: network.ProtocolTCP,
+				Networks: []network.IPRange{network.IPRangeFromIP(net.ParseIP("8.8.8.8"))},
+				Ports:    []network.PortRange{network.PortRangeFromPort(80)},
+			}
+			netOutRuleStr, err := json.Marshal(&netOutRule)
+			Expect(err).ToNot(HaveOccurred())
+
+			cmd.Stdin = strings.NewReader(fmt.Sprintf(`{"Pid": 123, "Properties": {}, "netout_rules": [%s]}`, string(netOutRuleStr)))
+			Expect(cmd.Run()).To(Succeed())
+
+			containerIp = getContainerIp(containerId).String()
+			parsedCmd := fmt.Sprintf(getContainerFirewall, containerIp)
+			output, err := exec.Command("powershell.exe", "-Command", parsedCmd).CombinedOutput()
+			Expect(err).To(Succeed())
+
+			var f firewall
+			Expect(json.Unmarshal(output, &f)).To(Succeed())
+
+			Expect(f.Protocol).To(Equal("TCP"))
+			Expect(f.RemotePort).To(Equal("80"))
+		})
+	})
+
 })
+
+func getContainerIp(containerId string) net.IP {
+	container, err := hcsshim.OpenContainer(containerId)
+	Expect(err).ToNot(HaveOccurred(), "no containers with id: "+containerId)
+
+	stats, err := container.Statistics()
+	Expect(err).ToNot(HaveOccurred())
+
+	Expect(stats.Network).ToNot(BeEmpty(), "container has no networks attached: "+containerId)
+	endpoint, err := hcsshim.GetHNSEndpointByID(stats.Network[0].EndpointId)
+	Expect(err).ToNot(HaveOccurred())
+
+	return endpoint.IPAddress
+}
