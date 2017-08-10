@@ -171,10 +171,7 @@ func networkDown(containerId string) error {
 		fmt.Sprintf(`name="%s"`, containerId),
 	}
 
-	err := exec.Command("netsh", netShArgs...).Run()
-	if err != nil {
-		return err
-	}
+	_ = exec.Command("netsh", netShArgs...).Run()
 
 	return nil
 }
