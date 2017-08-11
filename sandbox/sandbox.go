@@ -19,6 +19,15 @@ type ImageSpec struct {
 	specs.Spec
 }
 
+type DiskUsage struct {
+	TotalBytesUsed     uint64 `json:"total_bytes_used"`
+	ExclusiveBytesUsed uint64 `json:"exclusive_bytes_used"`
+}
+
+type ImageStats struct {
+	Disk DiskUsage `json:"disk_usage"`
+}
+
 //go:generate counterfeiter . Limiter
 type Limiter interface {
 	SetDiskLimit(volumePath string, size uint64) error
@@ -135,4 +144,8 @@ func (s *Manager) Delete() error {
 	}
 
 	return destroyErr
+}
+
+func (s *Manager) Stats() (*ImageStats, error) {
+	return nil
 }
