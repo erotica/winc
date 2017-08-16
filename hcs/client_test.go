@@ -57,7 +57,7 @@ var _ = Describe("Client", func() {
 			Expect(client.DestroyLayer(driverInfo, containerId)).To(Succeed())
 		})
 
-		It("creates the layer", func() {
+		FIt("creates the layer", func() {
 			volumeGuid, err := client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -70,6 +70,7 @@ var _ = Describe("Client", func() {
 		Context("when the layer has been created but not activated", func() {
 			BeforeEach(func() {
 				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
+				_, _ = client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
 			})
 
 			It("continues and creates the layer", func() {
@@ -127,7 +128,7 @@ var _ = Describe("Client", func() {
 				Expect(hcsshim.PrepareLayer(driverInfo, containerId, sandboxLayers)).To(Succeed())
 			})
 
-			It("destroys the layer", func() {
+			FIt("destroys the layer", func() {
 				Expect(client.DestroyLayer(driverInfo, containerId)).To(Succeed())
 				Expect(hcsshim.LayerExists(driverInfo, containerId)).To(BeFalse())
 			})

@@ -141,6 +141,9 @@ func (c *Manager) Create(spec *specs.Spec) error {
 					memBytes := *spec.Windows.Resources.Memory.Limit
 					containerConfig.MemoryMaximumInMB = int64(memBytes / 1024 / 1024)
 				}
+				if spec.Windows.Resources.CPU.Shares != nil {
+					containerConfig.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
+				}
 			}
 		}
 	}
