@@ -2,13 +2,15 @@ package layer_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"math/rand"
 	"os"
+	"path/filepath"
+	"strconv"
+	"time"
 
 	"code.cloudfoundry.org/winc/layer"
 	"code.cloudfoundry.org/winc/layer/layerfakes"
 
-	"github.com/Microsoft/hcsshim"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -19,17 +21,18 @@ var _ = Describe("Manager", func() {
 		m            *layer.Manager
 		parentLayers []string
 		storeDir     string
-		err          error
-		containerId  string
+		layerId      string
+		rootfsPath   string
 	)
 
 	const expectedVolumeGuid = `\\?\Volume{some-guid}\`
 
 	BeforeEach(func() {
-		storeDir, err = ioutil.TempDir("", "layer-store-dir")
-		Expect(err).NotTo(HaveOccurred())
+		rand.Seed(time.Now().UnixNano())
+		storeDir = filepath.Join(os.TempDir(), "store-layer-test-"+strconv.Itoa(rand.Int()))
 
-		parentLayers = []string{"layer-2", "layer-1"}
+		rootfsPath = "rootfs"
+		parentLayers = []string{"rootfs", "layer-2", "layer-1"}
 
 		client = &layerfakes.FakeHCSClient{}
 		m = layer.NewManager(client, storeDir)
@@ -45,107 +48,192 @@ var _ = Describe("Manager", func() {
 		})
 
 		It("creates the layer", func() {
-			volumeGuid, err := client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
+			volumeGuid, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
 			Expect(err).ToNot(HaveOccurred())
-
-			Expect
-
 			Expect(volumeGuid).To(Equal(expectedVolumeGuid))
+
+			Expect(storeDir).To(BeADirectory())
+
+			Expect(client.CreateSandboxLayerCallCount()).To(Equal(1))
+			di, id, parentId, pls := client.CreateSandboxLayerArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
+			Expect(parentId).To(Equal(rootfsPath))
+			Expect(pls).To(Equal(parentLayers))
+
+			Expect(client.ActivateLayerCallCount()).To(Equal(1))
+			di, id = client.ActivateLayerArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
+
+			Expect(client.PrepareLayerCallCount()).To(Equal(1))
+			di, id, pls = client.PrepareLayerArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
+			Expect(pls).To(Equal(parentLayers))
+
+			Expect(client.GetLayerMountPathCallCount()).To(Equal(1))
+			di, id = client.GetLayerMountPathArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
 		})
 
-		Context("when the layer has been created but not activated", func() {
+		Context("when CreateSandboxLayer times out and CreateLayer() is retried", func() {
 			BeforeEach(func() {
-				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
-				_, _ = client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
+				client.CreateSandboxLayerReturnsOnCall(0, errors.New("HCS timed out"))
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
+				Expect(err.Error()).To(Equal("HCS timed out"))
 			})
 
-			It("continues and creates the layer", func() {
-				volumeGuid, err := client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
+			It("calls all of the layer creation HCS functions", func() {
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
 				Expect(err).ToNot(HaveOccurred())
 
-				expectedVolumeGuid, err := hcsshim.GetLayerMountPath(driverInfo, containerId)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(volumeGuid).ToNot(BeEmpty())
-				Expect(volumeGuid).To(Equal(expectedVolumeGuid))
+				Expect(client.CreateSandboxLayerCallCount()).To(Equal(2))
+				Expect(client.ActivateLayerCallCount()).To(Equal(1))
+				Expect(client.PrepareLayerCallCount()).To(Equal(1))
+				Expect(client.GetLayerMountPathCallCount()).To(Equal(1))
 			})
 		})
 
-		Context("when the layer has been created and activated but not prepared", func() {
+		Context("when the sandbox layer is created, ActivateLayer times out and CreateLayer() is retried", func() {
 			BeforeEach(func() {
-				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
-				Expect(hcsshim.ActivateLayer(driverInfo, containerId)).To(Succeed())
+				client.ActivateLayerReturnsOnCall(0, errors.New("HCS timed out"))
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
+				Expect(err.Error()).To(Equal("HCS timed out"))
 			})
 
-			It("continues and creates the layer", func() {
-				volumeGuid, err := client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
+			It("starts the layer creation process from ActivateLayer", func() {
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
 				Expect(err).ToNot(HaveOccurred())
 
-				expectedVolumeGuid, err := hcsshim.GetLayerMountPath(driverInfo, containerId)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(volumeGuid).ToNot(BeEmpty())
-				Expect(volumeGuid).To(Equal(expectedVolumeGuid))
+				Expect(client.CreateSandboxLayerCallCount()).To(Equal(1))
+				Expect(client.ActivateLayerCallCount()).To(Equal(2))
+				Expect(client.PrepareLayerCallCount()).To(Equal(1))
+				Expect(client.GetLayerMountPathCallCount()).To(Equal(1))
 			})
 		})
 
-		Context("when the layer has been created, activated, and prepared", func() {
+		Context("when the sandbox layer is created + activated, PrepareLayer times out and CreateLayer() is retried", func() {
 			BeforeEach(func() {
-				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
-				Expect(hcsshim.ActivateLayer(driverInfo, containerId)).To(Succeed())
-				Expect(hcsshim.PrepareLayer(driverInfo, containerId, sandboxLayers)).To(Succeed())
+				client.PrepareLayerReturnsOnCall(0, errors.New("HCS timed out"))
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
+				Expect(err.Error()).To(Equal("HCS timed out"))
 			})
 
-			It("continues and creates the layer", func() {
-				volumeGuid, err := client.CreateLayer(driverInfo, containerId, rootfsPath, sandboxLayers)
+			It("starts the layer creation process from PrepareLayer", func() {
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
 				Expect(err).ToNot(HaveOccurred())
 
-				expectedVolumeGuid, err := hcsshim.GetLayerMountPath(driverInfo, containerId)
+				Expect(client.CreateSandboxLayerCallCount()).To(Equal(1))
+				Expect(client.ActivateLayerCallCount()).To(Equal(1))
+				Expect(client.PrepareLayerCallCount()).To(Equal(2))
+				Expect(client.GetLayerMountPathCallCount()).To(Equal(1))
+			})
+		})
+
+		Context("when the sandbox layer is created + activated + prepared, GetLayerMountPath times out and CreateLayer() is retried", func() {
+			BeforeEach(func() {
+				client.GetLayerMountPathReturnsOnCall(0, "", errors.New("HCS timed out"))
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
+				Expect(err.Error()).To(Equal("HCS timed out"))
+			})
+
+			It("only retries GetLayerMountPath", func() {
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(volumeGuid).ToNot(BeEmpty())
-				Expect(volumeGuid).To(Equal(expectedVolumeGuid))
+
+				Expect(client.CreateSandboxLayerCallCount()).To(Equal(1))
+				Expect(client.ActivateLayerCallCount()).To(Equal(1))
+				Expect(client.PrepareLayerCallCount()).To(Equal(1))
+				Expect(client.GetLayerMountPathCallCount()).To(Equal(2))
+			})
+		})
+
+		Context("GetLayerMountPath returns an empty string", func() {
+			BeforeEach(func() {
+				client.GetLayerMountPathReturnsOnCall(0, "", nil)
+			})
+
+			It("returns a missing volume path error", func() {
+				_, err := m.CreateLayer(layerId, rootfsPath, parentLayers)
+				Expect(err).To(MatchError(&layer.MissingVolumePathError{}))
 			})
 		})
 	})
 
-	Describe("DestroyLayer", func() {
-		Context("when the layer exists", func() {
+	Describe("RemoveLayer", func() {
+		It("destroys the layer", func() {
+			Expect(m.RemoveLayer(layerId)).To(Succeed())
+
+			Expect(client.UnprepareLayerCallCount()).To(Equal(1))
+			di, id := client.UnprepareLayerArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
+
+			Expect(client.DeactivateLayerCallCount()).To(Equal(1))
+			di, id = client.DeactivateLayerArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
+
+			Expect(client.DestroyLayerCallCount()).To(Equal(1))
+			di, id = client.DestroyLayerArgsForCall(0)
+			Expect(di.HomeDir).To(Equal(storeDir))
+			Expect(di.Flavour).To(Equal(1))
+			Expect(id).To(Equal(layerId))
+		})
+
+		Context("when UnprepareLayer times out and RemoveLayer is retried", func() {
 			BeforeEach(func() {
-				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
-				Expect(hcsshim.ActivateLayer(driverInfo, containerId)).To(Succeed())
-				Expect(hcsshim.PrepareLayer(driverInfo, containerId, sandboxLayers)).To(Succeed())
+				client.UnprepareLayerReturnsOnCall(0, errors.New("HCS timed out"))
+				err := m.RemoveLayer(layerId)
+				Expect(err.Error()).To(Equal("HCS timed out"))
 			})
 
-			FIt("destroys the layer", func() {
-				Expect(client.DestroyLayer(driverInfo, containerId)).To(Succeed())
-				Expect(hcsshim.LayerExists(driverInfo, containerId)).To(BeFalse())
+			It("calls all of the layer deletion HCS functions", func() {
+				Expect(m.RemoveLayer(layerId)).To(Succeed())
+
+				Expect(client.UnprepareLayerCallCount()).To(Equal(2))
+				Expect(client.DeactivateLayerCallCount()).To(Equal(1))
+				Expect(client.DestroyLayerCallCount()).To(Equal(1))
 			})
 		})
 
-		Context("when the layer exists but is not prepared", func() {
+		Context("when the layer has been unprepared, DeactivateLayer times out, and RemoveLayer is retried", func() {
 			BeforeEach(func() {
-				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
-				Expect(hcsshim.ActivateLayer(driverInfo, containerId)).To(Succeed())
+				client.DeactivateLayerReturnsOnCall(0, errors.New("HCS timed out"))
+				err := m.RemoveLayer(layerId)
+				Expect(err.Error()).To(Equal("HCS timed out"))
 			})
 
-			It("destroys the layer", func() {
-				Expect(client.DestroyLayer(driverInfo, containerId)).To(Succeed())
-				Expect(hcsshim.LayerExists(driverInfo, containerId)).To(BeFalse())
+			It("starts the layer deletion process from DeactivateLayer", func() {
+				Expect(m.RemoveLayer(layerId)).To(Succeed())
+
+				Expect(client.UnprepareLayerCallCount()).To(Equal(1))
+				Expect(client.DeactivateLayerCallCount()).To(Equal(2))
+				Expect(client.DestroyLayerCallCount()).To(Equal(1))
 			})
 		})
 
-		Context("when the layer exists but is not activated", func() {
+		Context("when the layer has been unprepared + deactivated, DestroyLayer times out, and RemoveLayer is retried", func() {
 			BeforeEach(func() {
-				Expect(hcsshim.CreateSandboxLayer(driverInfo, containerId, rootfsPath, sandboxLayers)).To(Succeed())
+				client.DestroyLayerReturnsOnCall(0, errors.New("HCS timed out"))
+				err := m.RemoveLayer(layerId)
+				Expect(err.Error()).To(Equal("HCS timed out"))
 			})
 
-			It("destroys the layer", func() {
-				Expect(client.DestroyLayer(driverInfo, containerId)).To(Succeed())
-				Expect(hcsshim.LayerExists(driverInfo, containerId)).To(BeFalse())
-			})
-		})
+			It("only calls DestroyLayer", func() {
+				Expect(m.RemoveLayer(layerId)).To(Succeed())
 
-		Context("when the layer does not exist", func() {
-			It("succeeds", func() {
-				Expect(client.DestroyLayer(driverInfo, containerId)).To(Succeed())
+				Expect(client.UnprepareLayerCallCount()).To(Equal(1))
+				Expect(client.DeactivateLayerCallCount()).To(Equal(1))
+				Expect(client.DestroyLayerCallCount()).To(Equal(2))
 			})
 		})
 	})
@@ -154,14 +242,14 @@ var _ = Describe("Manager", func() {
 		Context("when the error is a timeout error", func() {
 			It("returns true", func() {
 				err := errors.New("Some operation failed: This operation returned because the timeout period expired")
-				Expect(client.Retryable(err)).To(BeTrue())
+				Expect(m.Retryable(err)).To(BeTrue())
 			})
 		})
 
 		Context("when the error is something else", func() {
 			It("returns false", func() {
 				err := errors.New("some other error")
-				Expect(client.Retryable(err)).To(BeFalse())
+				Expect(m.Retryable(err)).To(BeFalse())
 			})
 		})
 	})

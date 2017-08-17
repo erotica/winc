@@ -107,7 +107,7 @@ func (m *Manager) CreateLayer(id, parentId string, parentLayerPaths []string) (s
 	return volumePath, nil
 }
 
-func (m *Manager) DestroyLayer(id string) error {
+func (m *Manager) RemoveLayer(id string) error {
 	switch m.deleteFailedStep {
 	case noDeleteFailure:
 		fallthrough

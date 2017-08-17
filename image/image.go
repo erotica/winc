@@ -1,4 +1,4 @@
-package sandbox
+package image
 
 import (
 	"encoding/json"
@@ -41,7 +41,7 @@ type Statser interface {
 //go:generate counterfeiter . LayerManager
 type LayerManager interface {
 	CreateLayer(string, string, []string) (string, error)
-	DestroyLayer(string) error
+	RemoveLayer(string) error
 	LayerExists(string) (bool, error)
 	GetLayerMountPath(string) (string, error)
 	Retryable(error) bool
@@ -146,7 +146,7 @@ func (s *Manager) Delete() error {
 
 	var destroyErr error
 	for i := 0; i < DESTROY_ATTEMPTS; i++ {
-		destroyErr = s.layerManager.DestroyLayer(s.id)
+		destroyErr = s.layerManager.RemoveLayer(s.id)
 		if destroyErr == nil || !s.layerManager.Retryable(destroyErr) {
 			break
 		}

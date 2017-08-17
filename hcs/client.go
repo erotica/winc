@@ -55,6 +55,30 @@ func (c *Client) GetContainerProperties(id string) (hcsshim.ContainerProperties,
 	return cps[0], nil
 }
 
+func (c *Client) ActivateLayer(di hcsshim.DriverInfo, id string) error {
+	return hcsshim.ActivateLayer(di, id)
+}
+
+func (c *Client) CreateSandboxLayer(di hcsshim.DriverInfo, id string, parentId string, parentLayerPaths []string) error {
+	return hcsshim.CreateSandboxLayer(di, id, parentId, parentLayerPaths)
+}
+
+func (c *Client) DeactivateLayer(di hcsshim.DriverInfo, id string) error {
+	return hcsshim.DeactivateLayer(di, id)
+}
+
+func (c *Client) DestroyLayer(di hcsshim.DriverInfo, id string) error {
+	return hcsshim.DestroyLayer(di, id)
+}
+
+func (c *Client) PrepareLayer(di hcsshim.DriverInfo, id string, parentLayerPaths []string) error {
+	return hcsshim.PrepareLayer(di, id, parentLayerPaths)
+}
+
+func (c *Client) UnprepareLayer(di hcsshim.DriverInfo, id string) error {
+	return hcsshim.UnprepareLayer(di, id)
+}
+
 func (c *Client) CreateEndpoint(endpoint *hcsshim.HNSEndpoint) (*hcsshim.HNSEndpoint, error) {
 	return endpoint.Create()
 }
