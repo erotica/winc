@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -48,6 +49,33 @@ var _ = Describe("up", func() {
 		err := exec.Command(wincBin, "delete", containerId).Run()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exec.Command(wincImageBin, "--store", "C:\\run\\winc", "delete", containerId).Run()).To(Succeed())
+	})
+
+	Context("a config file contains network MTU", func() {
+		var configFile string
+
+		BeforeEach(func() {
+			dir, err := ioutil.TempDir("", "winc-network.config")
+			Expect(err).NotTo(HaveOccurred())
+
+			configFile = filepath.Join(dir, "winc-network.json")
+			Expect(ioutil.WriteFile(configFile, []byte(`{"mtu": 1405}`), 0644)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			Expect(os.RemoveAll(filepath.Dir(configFile))).To(Succeed())
+		})
+
+		It("sets the network MTU on the internal container NIC", func() {
+			cmd := exec.Command(wincNetworkBin, "--configFile", configFile, "--action", "up", "--handle", containerId)
+			cmd.Stdin = strings.NewReader(`{"Pid": 123, "Properties": {} ,"netin": []}`)
+			Expect(cmd.Run()).To(Succeed())
+
+			cmd = exec.Command(wincBin, "exec", containerId, "powershell.exe", "-Command", `(Get-Netipinterface -AddressFamily ipv4 -InterfaceAlias "vEthernet*").NlMtu`)
+			output, err := cmd.CombinedOutput()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(string(output))).To(Equal("1405"))
+		})
 	})
 
 	Context("stdin contains a port mapping request", func() {
