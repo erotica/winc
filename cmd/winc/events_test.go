@@ -34,7 +34,8 @@ var _ = Describe("Events", func() {
 		AfterEach(func() {
 			_, _, err := execute(exec.Command(wincBin, "delete", containerId))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(execute(exec.Command(wincImageBin, "--store", rootPath, "delete", containerId))).To(Succeed())
+			_, _, err = execute(exec.Command(wincImageBin, "--store", rootPath, "delete", containerId))
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		Context("when the container has been created", func() {
