@@ -10,9 +10,6 @@ import (
 	"strings"
 
 	. "code.cloudfoundry.org/winc/cmd/winc"
-	"code.cloudfoundry.org/winc/container"
-	"code.cloudfoundry.org/winc/hcs"
-	"code.cloudfoundry.org/winc/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -113,11 +110,10 @@ var _ = Describe("Flags", func() {
 			})
 
 			AfterEach(func() {
-				client := &hcs.Client{}
-				nm := networkManager(client, containerId)
-				cm := container.NewManager(client, &volume.Mounter{}, nm, rootPath, containerId)
-				Expect(cm.Delete()).To(Succeed())
-				Expect(execute(wincImageBin, "--store", rootPath, "delete", containerId)).To(Succeed())
+				_, _, err := execute(exec.Command(wincBin, "delete", containerId))
+				Expect(err).ToNot(HaveOccurred())
+				_, _, err = execute(exec.Command(wincImageBin, "--store", rootPath, "delete", containerId))
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("does not log anything", func() {
@@ -183,18 +179,11 @@ var _ = Describe("Flags", func() {
 	})
 
 	Context("when passed '--root'", func() {
-		var (
-			storePath string
-			cm        *container.Manager
-		)
+		var storePath string
 
 		BeforeEach(func() {
 			storePath, err = ioutil.TempDir("", "wincroot")
 			Expect(err).ToNot(HaveOccurred())
-
-			client := &hcs.Client{}
-			nm := networkManager(client, containerId)
-			cm = container.NewManager(client, &volume.Mounter{}, nm, storePath, containerId)
 
 			bundleSpec := runtimeSpecGenerator(createSandbox(storePath, rootfsPath, containerId), containerId)
 			config, err := json.Marshal(&bundleSpec)
@@ -205,15 +194,14 @@ var _ = Describe("Flags", func() {
 		})
 
 		AfterEach(func() {
-			Expect(cm.Delete()).To(Succeed())
-			Expect(execute(wincImageBin, "--store", storePath, "delete", containerId)).To(Succeed())
-			Expect(os.RemoveAll(storePath)).To(Succeed())
+			_, _, err := execute(exec.Command(wincBin, "delete", containerId))
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err = execute(exec.Command(wincImageBin, "--store", storePath, "delete", containerId))
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("is able to create a container with the specified root", func() {
-			state, err := cm.State()
-			Expect(err).ToNot(HaveOccurred())
-			Expect(state.Pid).ToNot(Equal(-1))
+			Expect(containerExists(containerId)).To(BeTrue())
 		})
 	})
 
