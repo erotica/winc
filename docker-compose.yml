@@ -1,0 +1,29 @@
+﻿version: '2.1'
+
+services:
+ server1:
+  network_mode: "container:c49c6a30c980"
+  build: ./server1
+  # expose:
+  #   - "80"
+  # ports:
+  #  - "8081"
+  depends_on:
+   - server2
+  tty:
+    true
+ server2:
+  build: ./server2
+  network_mode: "container:c49c6a30c980"
+  # expose:
+  #  - "1433"
+  # ports:
+  #  - "8082"
+  tty:
+    true
+
+
+networks:
+ default:
+  external:
+   name: "nat"

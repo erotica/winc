@@ -62,6 +62,7 @@ type NetworkManager interface {
 	AttachEndpointToConfig(hcsshim.ContainerConfig) (hcsshim.ContainerConfig, error)
 	DeleteContainerEndpoints(hcs.Container) error
 	DeleteEndpointsById([]string) error
+	CreateEndpoint(int) (*hcsshim.HNSEndpoint, error)
 }
 
 func NewManager(hcsClient HCSClient, mounter Mounter, networkManager NetworkManager, rootPath, bundlePath string) *Manager {
@@ -124,19 +125,20 @@ func (c *Manager) Create(spec *specs.Spec) error {
 	sandboxDir := filepath.Join(c.rootPath, c.id)
 
 	containerConfig := hcsshim.ContainerConfig{
-		SystemType:        "Container",
-		Name:              c.bundlePath,
-		VolumePath:        volumePath,
-		Owner:             "winc",
-		LayerFolderPath:   sandboxDir,
-		Layers:            layerInfos,
-		MappedDirectories: mappedDirs,
+		SystemType:                 "Container",
+		Name:                       c.bundlePath,
+		VolumePath:                 volumePath,
+		Owner:                      "winc",
+		LayerFolderPath:            sandboxDir,
+		Layers:                     layerInfos,
+		MappedDirectories:          mappedDirs,
+		NetworkSharedContainerName: "c1",
 	}
 
-	containerConfig, err = c.networkManager.AttachEndpointToConfig(containerConfig)
-	if err != nil {
-		return err
-	}
+	// containerConfig, err = c.networkManager.AttachEndpointToConfig(containerConfig)
+	// if err != nil {
+	// 	return err
+	// }
 
 	if spec.Windows != nil {
 		if spec.Windows.Resources != nil {
@@ -153,12 +155,32 @@ func (c *Manager) Create(spec *specs.Spec) error {
 			}
 		}
 	}
+	endpoint1, err := c.networkManager.CreateEndpoint(8081)
+	if err != nil {
+		// if deleteErr := c.networkManager.DeleteEndpointsById(containerConfig.EndpointList); deleteErr != nil {
+		// 	logrus.Error(deleteErr.Error())
+		// }
+
+		return err
+	}
+	// endpoint2, err := c.networkManager.CreateEndpoint(8081)
+	// if err != nil {
+	// 	// if deleteErr := c.networkManager.DeleteEndpointsById(containerConfig.EndpointList); deleteErr != nil {
+	// 	// 	logrus.Error(deleteErr.Error())
+	// 	// }
+
+	// 	return err
+	// }
+
+	// containerConfig.EndpointList = []string{endpoint1.Id, endpoint2.Id}
+	containerConfig.EndpointList = []string{"c51a9a69-7348-4f9d-81af-d1c143ba0b5a", endpoint1.Id}
+	containerConfig.NetworkSharedContainerName = "c1"
 
 	container, err := c.hcsClient.CreateContainer(c.id, &containerConfig)
 	if err != nil {
-		if deleteErr := c.networkManager.DeleteEndpointsById(containerConfig.EndpointList); deleteErr != nil {
-			logrus.Error(deleteErr.Error())
-		}
+		// if deleteErr := c.networkManager.DeleteEndpointsById(containerConfig.EndpointList); deleteErr != nil {
+		// 	logrus.Error(deleteErr.Error())
+		// }
 
 		return err
 	}

@@ -80,6 +80,43 @@ func NewManager(client HCSClient, portAllocator PortAllocator, applier NetRuleAp
 	}
 }
 
+func (n *Manager) CreateEndpoint(port int) (*hcsshim.HNSEndpoint, error) {
+	wincNATNetwork, err := n.getWincNATNetwork()
+	if err != nil {
+		logrus.Error(err.Error())
+		return nil, err
+	}
+
+	appPortMapping, err := n.portMapping(port)
+	if err != nil {
+		logrus.Error(err.Error())
+		n.cleanupPorts()
+		return nil, err
+	}
+
+	// sshPortMapping, err := n.portMapping(2222)
+	// if err != nil {
+	// 	logrus.Error(err.Error())
+	// 	n.cleanupPorts()
+	// 	return nil, err
+	// }
+
+	endpoint := &hcsshim.HNSEndpoint{
+		Name:           n.id,
+		VirtualNetwork: wincNATNetwork.Id,
+		Policies:       []json.RawMessage{appPortMapping},
+	}
+
+	createdEndpoint, err := n.hcsClient.CreateEndpoint(endpoint)
+	if err != nil {
+		logrus.Error(err.Error())
+		n.cleanupPorts()
+		return nil, err
+	}
+
+	return createdEndpoint, nil
+}
+
 func (n *Manager) AttachEndpointToConfig(containerConfig hcsshim.ContainerConfig) (hcsshim.ContainerConfig, error) {
 	wincNATNetwork, err := n.getWincNATNetwork()
 	if err != nil {
